@@ -1,4 +1,5 @@
 import {timingSafeEqual} from 'node:crypto';
+import {readFileSync} from 'node:fs';
 import {createServer, type IncomingMessage} from 'node:http';
 import {HK_COMMANDS, sendCommand} from './hk.js';
 import {createHue} from './hue.js';
@@ -23,6 +24,8 @@ const {
 } = process.env;
 
 const isMock = '1' === MOCK || 'true' === MOCK;
+const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {version: string})
+  .version;
 
 if (!AGENT_TOKEN) {
   console.error('AGENT_TOKEN is required');
@@ -149,6 +152,8 @@ const spotifyRoute = async (
         return {body: await spotify.devices()};
       case 'playlists':
         return {body: await spotify.playlists()};
+      case 'queue':
+        return {body: await spotify.queue()};
       case 'search':
         return {body: await spotify.search(text(query.get('q'), 'q'))};
     }
@@ -199,6 +204,8 @@ const spotifyRoute = async (
 
         return done(spotify.transfer(text(body.deviceId, 'deviceId'), Boolean(body.play)));
       }
+      case 'queue':
+        return done(spotify.addToQueue(text((await readBody()).uri, 'uri')));
       case 'like': {
         const body = await readBody();
 
@@ -224,6 +231,8 @@ const route = async (
       body: {
         ok: true,
         mock: isMock,
+        version: VERSION,
+        uptime: Math.round(process.uptime()),
         sources,
         spotify: {configured: null !== devices.spotify, connected: devices.spotify?.connected() ?? false},
         lyrics: {configured: null !== devices.lyrics},

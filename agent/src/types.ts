@@ -86,6 +86,9 @@ export type Spotify = {
   transfer(deviceId: string, play: boolean): Promise<void>;
   /** Add to or remove from Liked Songs. */
   like(trackId: string, saved: boolean): Promise<void>;
+  /** Upcoming tracks, as Spotify reports them. */
+  queue(): Promise<SpotifyTrack[]>;
+  addToQueue(uri: string): Promise<void>;
   devices(): Promise<SpotifyDevice[]>;
   playlists(): Promise<SpotifyPlaylist[]>;
   search(query: string): Promise<SpotifyTrack[]>;

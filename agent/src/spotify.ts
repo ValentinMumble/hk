@@ -235,6 +235,14 @@ export const createSpotify = ({clientId, clientSecret, defaultDevice, tokensFile
     return saved;
   };
 
+  let cachedUserId = '';
+
+  const userId = async (): Promise<string> => {
+    if (!cachedUserId) cachedUserId = ((await api('GET', '/me')) as {id: string}).id;
+
+    return cachedUserId;
+  };
+
   const devices = async (): Promise<SpotifyDevice[]> => {
     const reply = (await api('GET', '/me/player/devices')) as {
       devices?: Array<{id: string; name: string; is_active: boolean; volume_percent?: number | null}>;
@@ -326,10 +334,26 @@ export const createSpotify = ({clientId, clientSecret, defaultDevice, tokensFile
       const reply = (await api('GET', '/me/playlists', {query: {limit: 50}})) as {
         items?: Array<{id: string; uri: string; name: string; images?: Array<{url: string; width?: number}>} | null>;
       };
-
-      return (reply.items ?? [])
+      const playlists = (reply.items ?? [])
         .filter((item): item is NonNullable<typeof item> => null !== item)
         .map(item => ({id: item.id, uri: item.uri, name: item.name, image: smallestImage(item.images, 60)}));
+
+      // Liked Songs is not a playlist, but the "collection" context plays it
+      return [
+        {id: 'liked', uri: `spotify:user:${await userId()}:collection`, name: '💚 Liked Songs', image: null},
+        ...playlists,
+      ];
+    },
+    queue: async () => {
+      const reply = (await api('GET', '/me/player/queue')) as {queue?: RawTrack[]};
+
+      return (reply.queue ?? [])
+        .filter(item => item && item.id)
+        .slice(0, 30)
+        .map(toTrack);
+    },
+    addToQueue: async uri => {
+      await api('POST', '/me/player/queue', {query: {uri}});
     },
     search: async query => {
       const reply = (await api('GET', '/search', {query: {q: query, type: 'track', limit: 10}})) as {

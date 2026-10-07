@@ -852,3 +852,130 @@ a.status,
   font-size: 16px;
   cursor: pointer;
 }
+
+/* sheets: search and queue over the player */
+.sheet {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 456px;
+  margin: 0 auto;
+  padding: 16px;
+  border-radius: 28px;
+  animation: rise 220ms ease;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--fg);
+  font: inherit;
+  font-size: 16px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.list-item.now {
+  opacity: 0.6;
+}
+
+.list-main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px 4px;
+  color: var(--fg);
+  text-align: left;
+}
+
+.list-main img,
+.list-art {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #222;
+  object-fit: cover;
+}
+
+.list-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.list-title,
+.list-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* status in settings */
+.status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.status-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.status-line dt {
+  color: var(--muted);
+}
+
+.status-line dd {
+  margin: 0;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-line.ok dd::before {
+  content: '● ';
+  color: #57b133;
+}
+
+.status-line.bad dd::before {
+  content: '● ';
+  color: #b13333;
+}

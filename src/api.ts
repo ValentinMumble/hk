@@ -4,6 +4,8 @@ export type AgentInfo = {
   ok: boolean;
   mock: boolean;
   sources: string[];
+  version?: string;
+  uptime?: number;
   spotify: {configured: boolean; connected: boolean};
   lyrics?: {configured: boolean};
 };
@@ -107,6 +109,8 @@ export const createApi = ({agentUrl, token}: Settings) => {
       repeat: (state: RepeatState) => call('POST', '/spotify/repeat', {state}),
       transfer: (deviceId: string, play: boolean) => call('POST', '/spotify/transfer', {deviceId, play}),
       like: (trackId: string, saved: boolean) => call('POST', '/spotify/like', {trackId, saved}),
+      queue: () => call<SpotifyTrack[]>('GET', '/spotify/queue'),
+      addToQueue: (uri: string) => call('POST', '/spotify/queue', {uri}),
       logout: () => call('POST', '/spotify/logout', {}),
       devices: () => call<SpotifyDevice[]>('GET', '/spotify/devices'),
       playlists: () => call<SpotifyPlaylist[]>('GET', '/spotify/playlists'),

@@ -1,5 +1,6 @@
 import {useState, type FormEvent} from 'react';
 import {createApi} from './api';
+import {Status} from './Status';
 import type {Settings} from './settings';
 
 type SetupProps = {
@@ -64,6 +65,7 @@ export const Setup = ({initial, onSave, onCancel}: SetupProps) => {
         <input type="password" required value={token} onChange={event => setToken(event.target.value)} />
       </label>
       {error && <p className="error">{error}</p>}
+      {initial && <Status settings={initial} />}
       <div className="row">
         {onCancel && (
           <button type="button" className="chip" onClick={onCancel}>

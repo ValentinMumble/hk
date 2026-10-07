@@ -2,6 +2,8 @@ import {useCallback, useEffect, useRef, useState, type MouseEvent} from 'react';
 import type {Api, PlaybackState, RepeatState, SpotifyDevice, SpotifyPlaylist} from './api';
 import {dominantColor} from './artwork';
 import {Icon} from './Icon';
+import {Queue} from './Queue';
+import {Search} from './Search';
 import {attempt} from './toast';
 
 const POLL_MS = 2000;
@@ -49,6 +51,7 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
   const [volume, setVolume] = useState<number | null>(null);
   const [devices, setDevices] = useState<SpotifyDevice[]>([]);
   const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
+  const [sheet, setSheet] = useState<'search' | 'queue' | null>(null);
   const [isLoggingIn, setLoggingIn] = useState(false);
   const artworkRef = useRef<string | null>(null);
   const volumeTimer = useRef<number | undefined>(undefined);
@@ -259,7 +262,7 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
       <div className={`player ${state?.isPlaying ? '' : 'paused'}`}>
         <div className="player-top">
           <h2>
-            <a className="app-link" href={track ? `spotify:track:${track.id}` : 'spotify:'} title="Open in Spotify">
+            <a className="app-link" href="spotify:" title="Open the Spotify app">
               Spotify ↗
             </a>
           </h2>
@@ -359,6 +362,12 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
               <Icon name="repeat" />
               {'track' === state?.repeat && <span className="badge">1</span>}
             </button>
+            <button type="button" className="round small" aria-label="Search" onClick={() => setSheet('search')}>
+              <Icon name="search" />
+            </button>
+            <button type="button" className="round small" aria-label="Up next" onClick={() => setSheet('queue')}>
+              <Icon name="layers" />
+            </button>
             <label className="round small select-wrap">
               <Icon name="list" />
               <select
@@ -394,6 +403,10 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
           </div>
         </div>
       </div>
+      {'search' === sheet && (
+        <Search api={api} onClose={() => setSheet(null)} onPlayed={() => window.setTimeout(refresh, AFTER_ACTION_MS)} />
+      )}
+      {'queue' === sheet && <Queue api={api} current={track} onClose={() => setSheet(null)} />}
     </section>
   );
 };
