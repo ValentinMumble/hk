@@ -257,9 +257,12 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
   return (
     <section className="panel">
       <div className={`player ${state?.isPlaying ? '' : 'paused'}`}>
-        {track?.artwork && <img key={`bg-${track.artwork}`} className="player-bg" src={track.artwork} alt="" />}
         <div className="player-top">
-          <h2>Spotify</h2>
+          <h2>
+            <a className="app-link" href={track ? `spotify:track:${track.id}` : 'spotify:'} title="Open in Spotify">
+              Spotify ↗
+            </a>
+          </h2>
           <label className="status select-wrap">
             <Icon name="speaker" /> {state?.device?.name ?? 'no device'}
             <select
