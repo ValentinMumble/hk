@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd agent for a Mac. Install:
+    cp deploy/dev.vumble.hk-agent.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.vumble.hk-agent.plist
+  Logs: ~/Library/Logs/hk-agent.log
+  Adjust the node path and the working directory to your machine.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.vumble.hk-agent</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/valentin.dijkstra/.nvm/versions/node/v20.20.1/bin/node</string>
+    <string>--env-file=.env</string>
+    <string>dist/index.js</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/valentin.dijkstra/dev/personal/hk/agent</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/valentin.dijkstra/Library/Logs/hk-agent.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/valentin.dijkstra/Library/Logs/hk-agent.log</string>
+</dict>
+</plist>

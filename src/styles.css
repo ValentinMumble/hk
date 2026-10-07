@@ -1,0 +1,268 @@
+:root {
+  --bg: #000;
+  --fg: #fff;
+  --muted: #777;
+  --line: #333;
+  --accent: #ffaa71;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-monospace, Menlo, monospace;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  gap: 32px;
+  max-width: 480px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 24px 16px 0;
+  padding-top: max(24px, env(safe-area-inset-top));
+}
+
+footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  width: 100%;
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-weight: normal;
+}
+
+h2 {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+}
+
+button {
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition:
+    color 600ms ease,
+    background-color 600ms ease,
+    transform 100ms ease;
+}
+
+button:active {
+  transform: scale(0.92);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.round {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  font-size: 32px;
+}
+
+.round.big {
+  width: 104px;
+  height: 104px;
+  font-size: 60px;
+}
+
+.round.labeled span {
+  margin-top: 2px;
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.round.muted {
+  color: var(--muted);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--fg);
+}
+
+.chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+
+.chip.dim {
+  opacity: 0.35;
+}
+
+.chip:disabled {
+  opacity: 0.5;
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+.swatch {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+
+.swatch.off {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  border-color: var(--line);
+  color: var(--muted);
+  font-size: 1.4rem;
+}
+
+input[type='range'] {
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.status {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.status-true {
+  color: #57b133;
+}
+
+.status-false {
+  color: #b13333;
+}
+
+.toast {
+  position: fixed;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 90vw;
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: #1c1c1c;
+  color: var(--fg);
+  transform: translateX(-50%);
+  animation: pop 200ms ease;
+  pointer-events: none;
+}
+
+.toast .dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+}
+
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 420px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 24px;
+  justify-content: center;
+}
+
+.setup h1 {
+  letter-spacing: 0.3em;
+  text-align: center;
+}
+
+.setup label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
+.setup input {
+  font: inherit;
+  font-size: 1rem;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #111;
+  color: var(--fg);
+}
+
+.setup input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.error {
+  margin: 0;
+  color: #b13333;
+}
