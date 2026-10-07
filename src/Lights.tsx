@@ -151,9 +151,6 @@ export const Lights = ({api}: {api: Api}) => {
               onClick={() => setColor(color)}
             />
           ))}
-          <button type="button" className="swatch off" aria-label="All lights off" onClick={allOff}>
-            <Icon name="power" />
-          </button>
         </div>
         <div
           className="wheel"
@@ -185,6 +182,9 @@ export const Lights = ({api}: {api: Api}) => {
             />
           )}
         </div>
+        <button type="button" className="round all-off" aria-label="All lights off" onClick={allOff}>
+          <Icon name="power" />
+        </button>
         <div className="row brightness-row">
           <span className="status">🔅</span>
           <input

@@ -80,7 +80,7 @@ export const App = () => {
     tabs.findIndex(candidate => candidate.key === tab),
   );
   const moveTab = useCallback(
-    (delta: number) => setTab(tabs[Math.min(tabs.length - 1, Math.max(0, index + delta))].key),
+    (delta: number) => setTab(tabs[(index + delta + tabs.length) % tabs.length].key),
     [index, tabs],
   );
 

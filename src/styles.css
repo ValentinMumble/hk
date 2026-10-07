@@ -265,6 +265,16 @@ button:active {
   box-shadow: none;
 }
 
+.all-off {
+  width: 76px;
+  height: 76px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 30px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
 .brightness-row {
   flex-wrap: nowrap;
 }
