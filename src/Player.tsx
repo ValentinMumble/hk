@@ -7,6 +7,7 @@ import {attempt} from './toast';
 const POLL_MS = 2000;
 const AFTER_ACTION_MS = 400;
 const STATE_KEY = 'hk.spotify.state';
+const RING = 2 * Math.PI * 48;
 
 type PlayerProps = {api: Api; connected: boolean; onConnected: () => void};
 
@@ -179,73 +180,92 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
 
   const track = state?.track ?? null;
   const duration = track?.durationMs ?? 0;
+  const ratio = duration ? Math.min(1, progress / duration) : 0;
 
   return (
     <section className="panel">
-      <header className="panel-header">
-        <h2>Spotify</h2>
-        <button type="button" className="status" onClick={openDevices}>
-          <Icon name="speaker" /> {state?.device?.name ?? 'no device'}
-        </button>
-      </header>
-      <div className={`artwork ${state?.isPlaying ? '' : 'paused'}`} onClick={seek}>
-        {track?.artwork ? <img src={track.artwork} alt="" /> : <div className="artwork-empty" />}
-        <div className="progress" style={{width: `${duration ? Math.min(100, (progress / duration) * 100) : 0}%`}} />
-      </div>
-      <div className="track">
-        <div className="track-name">{track?.name ?? (state ? 'Nothing playing' : '…')}</div>
-        <div className="track-artist">{track?.artists ?? ''}</div>
-        {track && (
-          <div className="track-time">
-            {formatTime(progress)} / {formatTime(duration)}
-          </div>
-        )}
-      </div>
-      <div className="row">
-        <button type="button" className="round" aria-label="Previous" onClick={() => act(() => api.spotify.previous())}>
-          <Icon name="previous" />
-        </button>
+      <div className={`player ${state?.isPlaying ? '' : 'paused'}`}>
+        {track?.artwork && <img key={`bg-${track.artwork}`} className="player-bg" src={track.artwork} alt="" />}
+        <div className="player-top">
+          <h2>Spotify</h2>
+          <button type="button" className="status" onClick={openDevices}>
+            <Icon name="speaker" /> {state?.device?.name ?? 'no device'}
+          </button>
+        </div>
         <button
           type="button"
-          className="round big"
+          className="disc"
           aria-label={state?.isPlaying ? 'Pause' : 'Play'}
           onClick={() => act(() => (state?.isPlaying ? api.spotify.pause() : api.spotify.play()))}
         >
-          <Icon name={state?.isPlaying ? 'pause' : 'play'} />
+          {track?.artwork ? <img key={track.artwork} src={track.artwork} alt="" /> : <div className="disc-empty" />}
+          <svg className="ring" viewBox="0 0 100 100" aria-hidden="true">
+            <circle className="ring-track" cx="50" cy="50" r="48" />
+            <circle className="ring-fill" cx="50" cy="50" r="48" style={{strokeDasharray: `${ratio * RING} ${RING}`}} />
+          </svg>
         </button>
-        <button type="button" className="round" aria-label="Next" onClick={() => act(() => api.spotify.next())}>
-          <Icon name="next" />
-        </button>
-      </div>
-      <div className="row volume-row">
-        <button
-          type="button"
-          className={`round small ${state?.shuffle ? '' : 'muted'}`}
-          aria-label="Shuffle"
-          onClick={() => act(() => api.spotify.shuffle(!state?.shuffle))}
-        >
-          <Icon name="shuffle" />
-        </button>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={volume ?? 0}
-          aria-label="Spotify volume"
-          onChange={event => changeVolume(Number(event.target.value))}
-        />
-        <button
-          type="button"
-          className={`round small ${'off' === state?.repeat ? 'muted' : ''}`}
-          aria-label="Repeat"
-          onClick={() => act(() => api.spotify.repeat(nextRepeat(state?.repeat ?? 'off')))}
-        >
-          <Icon name="repeat" />
-          {'track' === state?.repeat && <span className="badge">1</span>}
-        </button>
-        <button type="button" className="round small" aria-label="Playlists" onClick={openPlaylists}>
-          <Icon name="list" />
-        </button>
+        <div className="player-bottom">
+          <div className="player-title">{track?.name ?? (state ? 'Nothing playing' : '…')}</div>
+          <div className="player-artist">{track?.artists ?? ''}</div>
+          <div className="seek" onClick={seek} role="progressbar" aria-valuenow={Math.round(ratio * 100)}>
+            <div className="seek-fill" style={{width: `${ratio * 100}%`}} />
+          </div>
+          <div className="player-times">
+            <span>{formatTime(progress)}</span>
+            <span>-{formatTime(Math.max(0, duration - progress))}</span>
+          </div>
+          <div className="row">
+            <button
+              type="button"
+              className="round"
+              aria-label="Previous"
+              onClick={() => act(() => api.spotify.previous())}
+            >
+              <Icon name="previous" />
+            </button>
+            <button
+              type="button"
+              className="round big play"
+              aria-label={state?.isPlaying ? 'Pause' : 'Play'}
+              onClick={() => act(() => (state?.isPlaying ? api.spotify.pause() : api.spotify.play()))}
+            >
+              <Icon name={state?.isPlaying ? 'pause' : 'play'} />
+            </button>
+            <button type="button" className="round" aria-label="Next" onClick={() => act(() => api.spotify.next())}>
+              <Icon name="next" />
+            </button>
+          </div>
+          <div className="row volume-row">
+            <button
+              type="button"
+              className={`round small ${state?.shuffle ? '' : 'muted'}`}
+              aria-label="Shuffle"
+              onClick={() => act(() => api.spotify.shuffle(!state?.shuffle))}
+            >
+              <Icon name="shuffle" />
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={volume ?? 0}
+              aria-label="Spotify volume"
+              onChange={event => changeVolume(Number(event.target.value))}
+            />
+            <button
+              type="button"
+              className={`round small ${'off' === state?.repeat ? 'muted' : ''}`}
+              aria-label="Repeat"
+              onClick={() => act(() => api.spotify.repeat(nextRepeat(state?.repeat ?? 'off')))}
+            >
+              <Icon name="repeat" />
+              {'track' === state?.repeat && <span className="badge">1</span>}
+            </button>
+            <button type="button" className="round small" aria-label="Playlists" onClick={openPlaylists}>
+              <Icon name="list" />
+            </button>
+          </div>
+        </div>
       </div>
       {devices && (
         <div className="row">

@@ -20,7 +20,7 @@ process has to run at home. Everything else is static.
 ## Quickstart
 
 Everything is deployed: the web app at https://hk.vumble.dev, the agent on the Volumio Pi, reachable at
-`https://volumio.tailccebb8.ts.net` through Tailscale Funnel.
+`https://hk.tailccebb8.ts.net` through Tailscale Funnel.
 
 **New phone**
 
@@ -36,7 +36,8 @@ below.
 **Change the web app**: push to `main`, Vercel deploys it.
 
 **Hack locally**: `npm run dev` here and `npm run mock` in `agent/`, then open
-`http://localhost:5181/#agent=http://localhost:8787&token=mock`.
+`http://127.0.0.1:5181/#agent=http://localhost:8787&token=mock` (the dev server is on `127.0.0.1`, not `localhost`,
+because Spotify only accepts that loopback form as a redirect host).
 
 ## Layout
 
@@ -106,7 +107,7 @@ On a Mac, `agent/deploy/dev.vumble.hk-agent.plist` is a launchd equivalent of th
 The web app is served over HTTPS, so the agent needs an HTTPS URL too (a page on `https://` cannot call
 `http://192.168.1.13:8787`, browsers block it as mixed content). Easiest: [Tailscale Funnel](https://tailscale.com/kb/1223/funnel)
 on the Pi, which gives a public URL with a real certificate and no port forwarding. Ours is
-`https://volumio.tailccebb8.ts.net`.
+`https://hk.tailccebb8.ts.net`.
 The token is the only protection, keep it long.
 
 By hand, on the Pi:
@@ -120,11 +121,12 @@ tailscale funnel status            # shows the public URL
 
 In one go: create a reusable auth key in the Tailscale admin console (Settings → Keys), add it to `agent/.env` as
 `TS_AUTHKEY=tskey-auth-…` and run `agent/deploy/install-pi.sh`. Enabling Funnel on the tailnet is a one-time setting
-that survives reinstalls. After a reflash, remove the old `volumio` machine in the admin console first,
-otherwise the new one is named `volumio-1` and the URL changes.
+that survives reinstalls. The node is named `hk` in Tailscale (`sudo tailscale set --hostname hk`, the Pi's own
+hostname stays `volumio`). After a reflash, remove the old `hk` machine in the admin console first and set the
+hostname again, otherwise the new one is named `hk-1` and the URL changes.
 
 Then enter the Funnel URL and the token in the app, or open
-`https://hk.vumble.dev/#agent=https://volumio.tailccebb8.ts.net&token=<token>` on the phone.
+`https://hk.vumble.dev/#agent=https://hk.tailccebb8.ts.net&token=<token>` on the phone.
 
 Any other tunnel works the same way (Cloudflare Tunnel, ngrok), the app only needs a URL.
 
@@ -132,7 +134,7 @@ Any other tunnel works the same way (Cloudflare Tunnel, ngrok), the app only nee
 
 ```bash
 npm install
-npm run dev        # http://localhost:5181
+npm run dev        # http://127.0.0.1:5181
 npm run build      # tsc + vite build into dist/
 npm run format
 ```
@@ -143,8 +145,8 @@ the URL. The ⋯ button in the footer reopens that screen.
 
 For local development the dev server runs on plain HTTP, so it can talk to an agent on the LAN directly:
 
-- fake devices: `npm run mock` in `agent/`, then open `http://localhost:5181/#agent=http://localhost:8787&token=mock`
-- the real Pi: `http://localhost:5181/#agent=http://192.168.1.13:8787&token=<token from agent/.env>`
+- fake devices: `npm run mock` in `agent/`, then open `http://127.0.0.1:5181/#agent=http://localhost:8787&token=mock`
+- the real Pi: `http://127.0.0.1:5181/#agent=http://192.168.1.13:8787&token=<token from agent/.env>`
 
 ### Deploy
 

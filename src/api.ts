@@ -35,7 +35,15 @@ export type SpotifyTrack = {
   album: string;
   artwork: string | null;
 };
-export type Light = {id: string; name: string; on: boolean; reachable: boolean; brightness: number; hasColor: boolean};
+export type Light = {
+  id: string;
+  name: string;
+  on: boolean;
+  reachable: boolean;
+  brightness: number;
+  hasColor: boolean;
+  color: string;
+};
 export type HueState = {on?: boolean; color?: string; brightness?: number};
 
 export const createApi = ({agentUrl, token}: Settings) => {

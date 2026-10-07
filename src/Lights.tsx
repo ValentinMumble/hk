@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useRef, useState, type CSSProperties} from 'react';
 import type {Api, Light} from './api';
 import {Icon} from './Icon';
 import {attempt} from './toast';
@@ -20,9 +20,13 @@ const useDebounced = <T extends unknown[]>(callback: (...args: T) => void, delay
   );
 };
 
+const lightStyle = (light: Light): CSSProperties =>
+  ({'--light': light.color, '--level': light.on ? light.brightness / 100 : 0}) as CSSProperties;
+
 export const Lights = ({api}: {api: Api}) => {
   const [lights, setLights] = useState<Light[]>([]);
   const [brightness, setBrightness] = useState(100);
+  const [activeColor, setActiveColor] = useState<string | null>(null);
 
   const refresh = useCallback(() => attempt(async () => setLights(await api.lights())), [api]);
 
@@ -31,6 +35,7 @@ export const Lights = ({api}: {api: Api}) => {
   }, [refresh]);
 
   const setColor = async (color: string) => {
+    setActiveColor(color);
     document.documentElement.style.setProperty('--accent', color);
     await attempt(() => api.allLights({on: true, color, brightness: 100}), '🌞 Lights on', color);
     setBrightness(100);
@@ -38,6 +43,7 @@ export const Lights = ({api}: {api: Api}) => {
   };
 
   const allOff = async () => {
+    setActiveColor(null);
     await attempt(() => api.allLights({on: false}), '🌚 Lights off');
     refresh();
   };
@@ -48,25 +54,43 @@ export const Lights = ({api}: {api: Api}) => {
       setLights(current => current.map(item => (item.id === light.id ? {...item, on} : item)));
     });
 
-  const commitBrightness = useDebounced(
-    (value: number) => attempt(() => api.allLights({brightness: value}), `🔆 ${value}%`),
-    BRIGHTNESS_DEBOUNCE,
-  );
+  const commitBrightness = useDebounced((value: number) => {
+    attempt(() => api.allLights({brightness: value}), `🔆 ${value}%`).then(refresh);
+  }, BRIGHTNESS_DEBOUNCE);
+
+  const onCount = lights.filter(light => light.on).length;
 
   return (
     <section className="panel">
       <header className="panel-header">
         <h2>Lights</h2>
         <button type="button" className="status" onClick={refresh}>
-          {lights.filter(light => light.on).length} on
+          {onCount ? `${onCount} on` : 'all off'}
         </button>
       </header>
+      <div className="lights">
+        {lights.map(light => (
+          <button
+            key={light.id}
+            type="button"
+            className={`light ${light.on ? 'on' : ''} ${light.reachable ? '' : 'dim'}`}
+            style={lightStyle(light)}
+            aria-pressed={light.on}
+            onClick={() => toggle(light)}
+          >
+            <span className="light-bulb">
+              <Icon name="bulb" />
+            </span>
+            <span className="light-name">{light.name}</span>
+          </button>
+        ))}
+      </div>
       <div className="swatches">
         {COLORS.map(color => (
           <button
             key={color}
             type="button"
-            className="swatch"
+            className={`swatch ${color === activeColor ? 'active' : ''}`}
             style={{background: color}}
             aria-label={`All lights ${color}`}
             onClick={() => setColor(color)}
@@ -76,30 +100,22 @@ export const Lights = ({api}: {api: Api}) => {
           <Icon name="power" />
         </button>
       </div>
-      <div className="row">
-        {lights.map(light => (
-          <button
-            key={light.id}
-            type="button"
-            className={`chip ${light.on ? 'on' : ''} ${light.reachable ? '' : 'dim'}`}
-            onClick={() => toggle(light)}
-          >
-            <Icon name="bulb" /> {light.name}
-          </button>
-        ))}
+      <div className="row brightness-row">
+        <span className="status">🔅</span>
+        <input
+          type="range"
+          min={1}
+          max={100}
+          value={brightness}
+          aria-label="Brightness"
+          onChange={event => {
+            const value = Number(event.target.value);
+            setBrightness(value);
+            commitBrightness(value);
+          }}
+        />
+        <span className="status">🔆</span>
       </div>
-      <input
-        type="range"
-        min={1}
-        max={100}
-        value={brightness}
-        aria-label="Brightness"
-        onChange={event => {
-          const value = Number(event.target.value);
-          setBrightness(value);
-          commitBrightness(value);
-        }}
-      />
     </section>
   );
 };

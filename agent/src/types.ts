@@ -8,6 +8,8 @@ export type Light = {
   /** 0-100 */
   brightness: number;
   hasColor: boolean;
+  /** Current colour at full brightness, or the white it produces, for display. */
+  color: string;
 };
 
 export type Hue = {

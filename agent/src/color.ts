@@ -28,3 +28,41 @@ export const hexToXy = (hex: string): [number, number] => {
 
   return [round4(X / sum), round4(Y / sum)];
 };
+
+const gamma = (channel: number) => (channel <= 0.0031308 ? 12.92 * channel : 1.055 * channel ** (1 / 2.4) - 0.055);
+
+const toHex = (rgb: number[]) =>
+  `#${rgb
+    .map(channel =>
+      Math.round(Math.min(1, Math.max(0, channel)) * 255)
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
+
+/** CIE xy (at full brightness) to an sRGB hex colour, inverse of hexToXy, from the Hue developer docs. */
+export const xyToHex = ([x, y]: [number, number]): string => {
+  if (y <= 0) return '#000000';
+
+  const Y = 1;
+  const X = (Y / y) * x;
+  const Z = (Y / y) * (1 - x - y);
+  const linear = [
+    X * 1.656492 - Y * 0.354851 - Z * 0.255038,
+    -X * 0.707196 + Y * 1.655397 + Z * 0.036152,
+    X * 0.051713 - Y * 0.121364 + Z * 1.01153,
+  ].map(channel => Math.max(0, channel));
+  const max = Math.max(...linear);
+  const scaled = max > 1 ? linear.map(channel => channel / max) : linear;
+
+  return toHex(scaled.map(gamma));
+};
+
+/** Colour temperature in mireds (153 cool … 500 warm) to a display colour. */
+export const miredToHex = (mired: number): string => {
+  const warmth = Math.min(1, Math.max(0, (mired - 153) / (500 - 153)));
+  const cool = [0.9, 0.94, 1];
+  const warm = [1, 0.7, 0.42];
+
+  return toHex(cool.map((channel, index) => channel + (warm[index] - channel) * warmth));
+};

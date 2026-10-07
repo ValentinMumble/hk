@@ -4,7 +4,7 @@
   "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 5181 --strictPort",
+    "dev": "vite --host 127.0.0.1 --port 5181 --strictPort",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"agent/src/**/*.ts\" index.html",

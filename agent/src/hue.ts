@@ -1,12 +1,15 @@
 import {request as httpRequest} from 'node:http';
 import {request as httpsRequest, type RequestOptions} from 'node:https';
-import {hexToXy} from './color.js';
+import {hexToXy, miredToHex, xyToHex} from './color.js';
 import type {Hue, HueState, Light} from './types.js';
 
 /** Hue bridge local API (v1). Recent firmware serves it over HTTPS with a self-signed certificate. */
 const TIMEOUT_MS = 5000;
 
-type RawLight = {name: string; state: {on: boolean; bri?: number; reachable?: boolean; xy?: [number, number]}};
+type RawLight = {
+  name: string;
+  state: {on: boolean; bri?: number; reachable?: boolean; xy?: [number, number]; ct?: number};
+};
 type BridgeReply = Array<{success?: unknown; error?: {description?: string}}>;
 
 const toLight = ([id, raw]: [string, RawLight]): Light => ({
@@ -16,6 +19,7 @@ const toLight = ([id, raw]: [string, RawLight]): Light => ({
   reachable: raw.state.reachable ?? true,
   brightness: Math.round(((raw.state.bri ?? 254) / 254) * 100),
   hasColor: undefined !== raw.state.xy,
+  color: raw.state.xy ? xyToHex(raw.state.xy) : raw.state.ct ? miredToHex(raw.state.ct) : '#ffe9c4',
 });
 
 const toBridgeState = ({on, color, brightness}: HueState) => ({

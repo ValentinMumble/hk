@@ -10,7 +10,7 @@ const {
   PORT = '8787',
   AGENT_TOKEN = '',
   HK_IP = '',
-  HK_SOURCES = 'Radio,TV,Cable Sat',
+  HK_SOURCES = 'TV,Radio,Cable Sat',
   HUE_URL = '',
   HUE_USERNAME = '',
   SPOTIFY_CLIENT_ID = '',

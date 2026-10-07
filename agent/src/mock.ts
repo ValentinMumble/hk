@@ -7,10 +7,11 @@ const STATUS_REPLY =
 /** Fake devices so the web app can be developed without the amp or the bridge. */
 export const createMockDevices = (): Devices => {
   const lights: Light[] = [
-    {id: '1', name: 'Boule', on: false, reachable: true, brightness: 100, hasColor: true},
-    {id: '2', name: 'Strip', on: true, reachable: true, brightness: 60, hasColor: true},
-    {id: '3', name: 'Pied', on: false, reachable: true, brightness: 100, hasColor: false},
-    {id: '4', name: 'Applique', on: false, reachable: false, brightness: 100, hasColor: false},
+    {id: '1', name: 'Boule', on: false, reachable: true, brightness: 100, hasColor: true, color: '#01a7c2'},
+    {id: '2', name: 'Strip', on: true, reachable: true, brightness: 60, hasColor: true, color: '#ff96ca'},
+    {id: '3', name: 'Pied', on: false, reachable: true, brightness: 100, hasColor: false, color: '#ffe9c4'},
+    {id: '4', name: 'Applique', on: false, reachable: false, brightness: 100, hasColor: false, color: '#ffe9c4'},
+    {id: '5', name: 'Porte', on: true, reachable: true, brightness: 86, hasColor: false, color: '#ffd1a0'},
   ];
 
   const find = (id: string): Light => {
@@ -21,9 +22,10 @@ export const createMockDevices = (): Devices => {
     return light;
   };
 
-  const apply = (light: Light, {on, brightness}: HueState) => {
+  const apply = (light: Light, {on, brightness, color}: HueState) => {
     if (undefined !== on) light.on = on;
     if (undefined !== brightness) light.brightness = brightness;
+    if (undefined !== color && light.hasColor) light.color = color;
   };
 
   const tracks: SpotifyTrack[] = [

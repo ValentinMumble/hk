@@ -28,7 +28,7 @@ export const Sound = ({api, sources}: SoundProps) => {
   return (
     <section className="panel">
       <header className="panel-header">
-        <h2>Sound</h2>
+        <h2>HK</h2>
         <button type="button" className={`status status-${isOnline}`} onClick={checkStatus}>
           {null === isOnline ? '…' : isOnline ? '● online' : '○ offline, tap to retry'}
         </button>
@@ -51,24 +51,6 @@ export const Sound = ({api, sources}: SoundProps) => {
         </button>
         <button type="button" className="round big" aria-label="Volume up" onClick={() => run('volume-up', '👆')}>
           <Icon name="volumeUp" />
-        </button>
-      </div>
-      <div className="row">
-        <button type="button" className="round labeled" onClick={() => run('mute', '🔇')}>
-          <Icon name="mute" />
-          <span>mute</span>
-        </button>
-        <button type="button" className="round labeled" onClick={() => run('on', '🟢 on')}>
-          <Icon name="power" />
-          <span>on</span>
-        </button>
-        <button type="button" className="round labeled" onClick={() => run('sleep', '😴 sleep')}>
-          <Icon name="sleep" />
-          <span>sleep</span>
-        </button>
-        <button type="button" className="round labeled muted" onClick={() => run('off', '🌚 off')}>
-          <Icon name="power" />
-          <span>off</span>
         </button>
       </div>
     </section>
