@@ -32,7 +32,7 @@ npm --prefix "$AGENT_DIR" run build --silent
 say "2/5 Copying files to $HOST:~/$REMOTE_DIR"
 ssh "$HOST" "mkdir -p ~/$REMOTE_DIR"
 rsync -az --delete "$AGENT_DIR/dist/" "$HOST:$REMOTE_DIR/dist/"
-rsync -az "$AGENT_DIR/package.json" "$AGENT_DIR/.env" "$HOST:$REMOTE_DIR/"
+rsync -azL "$AGENT_DIR/package.json" "$AGENT_DIR/.env" "$HOST:$REMOTE_DIR/"   # -L: .env may be a symlink into papyrus
 
 say "3/5 Picking a Node"
 node_bin="$(ssh "$HOST" bash -s -- "$NODE_MAJOR" "$REMOTE_DIR" < "$AGENT_DIR/deploy/pick-node.sh")"

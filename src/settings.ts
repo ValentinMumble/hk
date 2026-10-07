@@ -7,9 +7,14 @@ const normalize = ({agentUrl, token}: Settings): Settings => ({
   token: token.trim(),
 });
 
+/** True when launched from the home screen (iOS gives such apps their own storage, separate from Safari). */
+const isStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches || (navigator as {standalone?: boolean}).standalone === true;
+
 /**
  * Opening `https://hk.vumble.dev/#agent=https://…&token=…` fills the settings on first load.
- * Handy to set a phone up without typing. The hash is removed from the URL right away.
+ * Handy to set a phone up without typing. In a browser the hash is kept, so "Add to Home Screen" from that page
+ * carries the settings into the home-screen app; there, the hash is removed once imported.
  */
 const readHash = (): Settings | null => {
   const params = new URLSearchParams(window.location.hash.slice(1));
@@ -24,7 +29,7 @@ export const loadSettings = (): Settings | null => {
 
   if (fromHash) {
     saveSettings(fromHash);
-    window.history.replaceState(null, '', window.location.pathname);
+    if (isStandalone()) window.history.replaceState(null, '', window.location.pathname);
 
     return fromHash;
   }

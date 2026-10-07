@@ -14,6 +14,21 @@ export const Setup = ({initial, onSave, onCancel}: SetupProps) => {
   const [error, setError] = useState('');
   const [isChecking, setChecking] = useState(false);
 
+  /** A whole setup link (`https://hk.vumble.dev/#agent=…&token=…`) pasted in the URL field fills both fields. */
+  const handleUrlChange = (value: string) => {
+    const hash = value.includes('#agent=') ? value.slice(value.indexOf('#') + 1) : '';
+    const params = new URLSearchParams(hash);
+    const pastedAgent = params.get('agent');
+    const pastedToken = params.get('token');
+
+    if (pastedAgent && pastedToken) {
+      setAgentUrl(pastedAgent);
+      setToken(pastedToken);
+    } else {
+      setAgentUrl(value);
+    }
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     const settings = {agentUrl: agentUrl.trim().replace(/\/+$/, ''), token: token.trim()};
@@ -41,7 +56,7 @@ export const Setup = ({initial, onSave, onCancel}: SetupProps) => {
           autoFocus
           placeholder="https://mac.tailnet.ts.net"
           value={agentUrl}
-          onChange={event => setAgentUrl(event.target.value)}
+          onChange={event => handleUrlChange(event.target.value)}
         />
       </label>
       <label>

@@ -17,6 +17,27 @@ phone ──HTTPS──▶ hk.vumble.dev (Vercel, static)
 The amp only speaks a raw TCP protocol on the LAN and the Hue bridge only answers on the LAN, so one small
 process has to run at home. Everything else is static.
 
+## Quickstart
+
+Everything is deployed: the web app at https://hk.vumble.dev, the agent on the Volumio Pi, reachable at
+`https://volumio.tailccebb8.ts.net` through Tailscale Funnel.
+
+**New phone**
+
+1. On the Mac: `agent/deploy/phone-link.sh` (copies the setup link, with the agent URL and the token, to the clipboard).
+2. On the phone: paste it in Safari (Universal Clipboard works from the Mac). The app configures itself and keeps the
+   settings.
+3. Share → Add to Home Screen, from that same page. The home-screen app starts configured too. If it ever asks again,
+   paste the same link into its URL field: it fills both fields.
+
+**Change the agent** (code, `.env`, or after a reflash): `agent/deploy/install-pi.sh volumio@volumio.local`, details
+below.
+
+**Change the web app**: push to `main`, Vercel deploys it.
+
+**Hack locally**: `npm run dev` here and `npm run mock` in `agent/`, then open
+`http://localhost:5181/#agent=http://localhost:8787&token=mock`.
+
 ## Layout
 
 | Path     | What                                                                                          |
@@ -71,8 +92,9 @@ On the Pi: `systemctl status hk-agent`, `journalctl -u hk-agent -f`.
 
 1. Flash Volumio, boot it, finish its setup wizard.
 2. Put your SSH key on it once: `ssh-copy-id volumio@volumio.local`.
-3. Make sure `agent/.env` is on the Mac (it is git-ignored; keep a copy in papyrus next to the other `.env` files).
-   It holds the amp IP, the Hue key, the token and, optionally, `TS_AUTHKEY`.
+3. Make sure `agent/.env` is on the Mac. It is git-ignored here and lives in papyrus like the other `.env` files:
+   `agent/.env` is a symlink to `~/dev/papyrus/hk/agent/.env` (recreate it with
+   `ln -s $HOME/dev/papyrus/hk/agent/.env agent/.env`). It holds the amp IP, the Hue key, the token and `TS_AUTHKEY`.
 4. Run `agent/deploy/install-pi.sh volumio@volumio.local`.
 
 With `TS_AUTHKEY` set, step 4 also installs Tailscale and opens the Funnel, so nothing else is needed.
@@ -83,7 +105,8 @@ On a Mac, `agent/deploy/dev.vumble.hk-agent.plist` is a launchd equivalent of th
 
 The web app is served over HTTPS, so the agent needs an HTTPS URL too (a page on `https://` cannot call
 `http://192.168.1.13:8787`, browsers block it as mixed content). Easiest: [Tailscale Funnel](https://tailscale.com/kb/1223/funnel)
-on the Pi, which gives a public `https://volumio.<tailnet>.ts.net` URL with a real certificate and no port forwarding.
+on the Pi, which gives a public URL with a real certificate and no port forwarding. Ours is
+`https://volumio.tailccebb8.ts.net`.
 The token is the only protection, keep it long.
 
 By hand, on the Pi:
@@ -101,7 +124,7 @@ that survives reinstalls. After a reflash, remove the old `volumio` machine in t
 otherwise the new one is named `volumio-1` and the URL changes.
 
 Then enter the Funnel URL and the token in the app, or open
-`https://hk.vumble.dev/#agent=https://volumio.<tailnet>.ts.net&token=<token>` on the phone.
+`https://hk.vumble.dev/#agent=https://volumio.tailccebb8.ts.net&token=<token>` on the phone.
 
 Any other tunnel works the same way (Cloudflare Tunnel, ngrok), the app only needs a URL.
 
