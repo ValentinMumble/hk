@@ -1,11 +1,10 @@
 import {useCallback, useEffect, useRef, useState, type CSSProperties} from 'react';
 import type {Api, Light} from './api';
 import {Icon, type IconName} from './Icon';
-import {attempt, toast} from './toast';
+import {attempt} from './toast';
 
 const COLORS = ['#ffffff', '#ffaa71', '#01a7c2', '#57b133', '#b13333', '#ff96ca'];
 const DEBOUNCE_MS = 300;
-const FADE_OUT_SECONDS = 600;
 
 /** Icons by light name, like the old app did; anything else is a plain bulb. */
 const ICONS: Record<string, IconName> = {
@@ -16,11 +15,6 @@ const ICONS: Record<string, IconName> = {
   porte: 'door',
 };
 const lightIcon = (name: string): IconName => ICONS[name.trim().toLowerCase()] ?? 'bulb';
-
-const randomColor = () =>
-  `#${Math.floor(Math.random() * 0xffffff)
-    .toString(16)
-    .padStart(6, '0')}`;
 
 const hslToHex = (hue: number, saturation: number, lightness: number) => {
   const channel = (offset: number) => {
@@ -67,7 +61,6 @@ export const Lights = ({api}: {api: Api}) => {
   const [lights, setLights] = useState<Light[]>([]);
   const [brightness, setBrightness] = useState(100);
   const [activeColor, setActiveColor] = useState<string | null>(null);
-  const [isLooping, setLooping] = useState(false);
   const [wheelPoint, setWheelPoint] = useState<{x: number; y: number} | null>(null);
   const isDragging = useRef(false);
 
@@ -81,70 +74,14 @@ export const Lights = ({api}: {api: Api}) => {
 
   const setColor = async (color: string, label = '🌞 Lights on') => {
     setActiveColor(color);
-    setLooping(false);
     setAccent(color);
     await attempt(() => api.allLights({on: true, color, brightness: 100, effect: 'none'}), label, color);
     setBrightness(100);
     refresh();
   };
 
-  /** One colour per lamp: colour lights take the palette in turn, the others just come on. */
-  const paint = async (colors: string[], label: string) => {
-    setActiveColor(null);
-    setLooping(false);
-    setAccent(colors[0]);
-    let paletteIndex = 0;
-    await attempt(
-      () =>
-        Promise.all(
-          lights
-            .filter(light => light.reachable)
-            .map(light =>
-              light.hasColor
-                ? api.setLight(light.id, {
-                    on: true,
-                    brightness: 100,
-                    color: colors[paletteIndex++ % colors.length],
-                    effect: 'none',
-                  })
-                : api.setLight(light.id, {on: true, brightness: 100}),
-            ),
-        ),
-      label,
-      colors[0],
-    );
-    setBrightness(100);
-    refresh();
-  };
-
-  const party = () => paint(lights.filter(light => light.hasColor).map(randomColor), '🎉 Party');
-
-  const matchMusic = () => {
-    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
-
-    return accent ? setColor(accent, '🎵 Lights match the music') : toast('🎵 Play something first');
-  };
-
-  const toggleLoop = async () => {
-    const next = !isLooping;
-    setLooping(next);
-    await attempt(
-      () => api.allLights({on: true, effect: next ? 'colorloop' : 'none'}),
-      next ? '🌈 Colour loop' : '🌈 Loop off',
-    );
-  };
-
-  const blink = () => attempt(() => api.allLights({alert: 'select'}), '✨');
-
-  const fadeOut = async () => {
-    setLooping(false);
-    await attempt(() => api.allLights({on: false, transition: FADE_OUT_SECONDS}), '🌙 Fading out over 10 minutes');
-    refresh();
-  };
-
   const allOff = async () => {
     setActiveColor(null);
-    setLooping(false);
     await attempt(() => api.allLights({on: false}), '🌚 Lights off');
     refresh();
   };
@@ -247,23 +184,6 @@ export const Lights = ({api}: {api: Api}) => {
               }}
             />
           )}
-        </div>
-        <div className="row">
-          <button type="button" className="chip" onClick={party}>
-            🎉 Party
-          </button>
-          <button type="button" className="chip" onClick={matchMusic}>
-            🎵 Music
-          </button>
-          <button type="button" className={`chip ${isLooping ? 'on' : ''}`} onClick={toggleLoop}>
-            🌈 Loop
-          </button>
-          <button type="button" className="chip" onClick={blink}>
-            ✨ Blink
-          </button>
-          <button type="button" className="chip" onClick={fadeOut}>
-            🌙 Fade out
-          </button>
         </div>
         <div className="row brightness-row">
           <span className="status">🔅</span>

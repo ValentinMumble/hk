@@ -127,14 +127,15 @@ export const App = () => {
 
   return (
     <>
-      <div className="topbar">
-        <span>{info?.mock ? 'mock agent' : ''}</span>
-        <button type="button" className="status" aria-label="Settings" onClick={() => setEditing(true)}>
-          <Icon name="more" />
-        </button>
-      </div>
       <main key={tab} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        {'hk' === tab && <Sound api={api} sources={info?.sources ?? []} />}
+        {'hk' === tab && (
+          <Sound
+            api={api}
+            sources={info?.sources ?? []}
+            isMock={info?.mock ?? false}
+            onSettings={() => setEditing(true)}
+          />
+        )}
         {'spotify' === tab &&
           (info?.spotify.configured ? (
             <Player api={api} connected={info.spotify.connected} onConnected={loadInfo} />
@@ -153,6 +154,7 @@ export const App = () => {
             key={candidate.key}
             type="button"
             className={`tab ${candidate.key === tab ? 'active' : ''}`}
+            aria-label={candidate.label}
             aria-current={candidate.key === tab ? 'page' : undefined}
             onClick={() => setTab(candidate.key)}
           >

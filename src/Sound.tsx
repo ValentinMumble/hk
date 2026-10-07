@@ -3,9 +3,9 @@ import type {Api} from './api';
 import {Icon} from './Icon';
 import {attempt} from './toast';
 
-type SoundProps = {api: Api; sources: string[]};
+type SoundProps = {api: Api; sources: string[]; isMock: boolean; onSettings: () => void};
 
-export const Sound = ({api, sources}: SoundProps) => {
+export const Sound = ({api, sources, isMock, onSettings}: SoundProps) => {
   const [isOnline, setOnline] = useState<boolean | null>(null);
 
   const checkStatus = useCallback(async () => {
@@ -59,13 +59,14 @@ export const Sound = ({api, sources}: SoundProps) => {
             <Icon name="mute" />
             <span>mute</span>
           </button>
-          <button type="button" className="round labeled" onClick={() => run('sleep', '😴 sleep')}>
-            <Icon name="sleep" />
-            <span>sleep</span>
-          </button>
           <button type="button" className="round labeled muted" onClick={() => run('off', '🌚 off')}>
             <Icon name="power" />
             <span>off</span>
+          </button>
+        </div>
+        <div className="row">
+          <button type="button" className="status" onClick={onSettings}>
+            <Icon name="more" /> settings{isMock ? ' · mock agent' : ''}
           </button>
         </div>
       </div>

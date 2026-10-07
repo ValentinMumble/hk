@@ -52,9 +52,19 @@ export const Lyrics = ({api}: {api: Api}) => {
           <div className="track-artist">{result.artist}</div>
         </div>
       )}
-      <div className="lyrics glass" ref={scrollRef}>
-        {isLoading && !result ? '…' : error ? <span className="status">😶 {error}</span> : result?.lyrics}
-      </div>
+      {isLoading && !result ? (
+        <div className="loader" role="status" aria-label="Finding lyrics">
+          <span />
+          <span />
+          <span />
+        </div>
+      ) : error && !result ? (
+        <p className="status">😶 {error}</p>
+      ) : (
+        <div className="lyrics" ref={scrollRef}>
+          {result?.lyrics}
+        </div>
+      )}
     </section>
   );
 };

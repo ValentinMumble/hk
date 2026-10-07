@@ -6,6 +6,7 @@ import {attempt} from './toast';
 
 const POLL_MS = 2000;
 const AFTER_ACTION_MS = 400;
+const VOLUME_STEP = 5;
 const STATE_KEY = 'hk.spotify.state';
 const RING = 2 * Math.PI * 48;
 
@@ -23,12 +24,31 @@ const nextRepeat = (state: RepeatState): RepeatState =>
 /** Redirect URI registered in the Spotify dashboard: the app's own origin. */
 const redirectUri = () => `${window.location.origin}/`;
 
+/** One blurred copy of the album art behind the whole app (kept across tabs, the element lives outside React). */
+const setBackdrop = (artwork: string | null) => {
+  let image = document.querySelector<HTMLImageElement>('img.backdrop');
+
+  if (!image) {
+    image = document.createElement('img');
+    image.className = 'backdrop';
+    image.alt = '';
+    document.body.prepend(image);
+  }
+
+  if (artwork) {
+    image.src = artwork;
+    image.classList.add('visible');
+  } else {
+    image.classList.remove('visible');
+  }
+};
+
 export const Player = ({api, connected, onConnected}: PlayerProps) => {
   const [state, setState] = useState<PlaybackState | null>(null);
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState<number | null>(null);
-  const [devices, setDevices] = useState<SpotifyDevice[] | null>(null);
-  const [playlists, setPlaylists] = useState<SpotifyPlaylist[] | null>(null);
+  const [devices, setDevices] = useState<SpotifyDevice[]>([]);
+  const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
   const [isLoggingIn, setLoggingIn] = useState(false);
   const artworkRef = useRef<string | null>(null);
   const volumeTimer = useRef<number | undefined>(undefined);
@@ -99,13 +119,14 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
     return () => window.clearInterval(timer);
   }, [state]);
 
-  // Accent from the artwork
+  // Accent from the artwork, and the artwork itself as the app's blurred backdrop
   useEffect(() => {
     const artwork = state?.track?.artwork ?? null;
 
     if (artwork === artworkRef.current) return;
 
     artworkRef.current = artwork;
+    setBackdrop(artwork);
 
     if (!artwork) return;
 
@@ -172,19 +193,49 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
     }, 300);
   };
 
-  const openDevices = async () => {
-    if (devices) return setDevices(null);
+  const stepVolume = (delta: number) =>
+    changeVolume(Math.min(100, Math.max(0, (volume ?? state?.device?.volume ?? 50) + delta)));
 
-    setPlaylists(null);
-    await attempt(async () => setDevices(await api.spotify.devices()));
+  const loadDevices = useCallback(() => {
+    api.spotify
+      .devices()
+      .then(setDevices)
+      .catch(() => undefined);
+  }, [api]);
+
+  const loadPlaylists = useCallback(() => {
+    api.spotify
+      .playlists()
+      .then(setPlaylists)
+      .catch(() => undefined);
+  }, [api]);
+
+  useEffect(() => {
+    if (!connected) return;
+
+    loadDevices();
+    loadPlaylists();
+  }, [connected, loadDevices, loadPlaylists]);
+
+  const transferTo = (deviceId: string) => {
+    const device = devices.find(candidate => candidate.id === deviceId);
+
+    if (!device || device.id === state?.device?.id) return;
+
+    act(() => api.spotify.transfer(device.id, state?.isPlaying ?? false), `🔈 ${device.name}`);
   };
 
-  const openPlaylists = async () => {
-    if (playlists) return setPlaylists(null);
+  const playPlaylist = (uri: string) => {
+    const playlist = playlists.find(candidate => candidate.uri === uri);
 
-    setDevices(null);
-    await attempt(async () => setPlaylists(await api.spotify.playlists()));
+    if (playlist) act(() => api.spotify.play({contextUri: playlist.uri}), `▶️ ${playlist.name}`);
   };
+
+  /** The active device is always listed, even before the device list has loaded. */
+  const deviceOptions =
+    state?.device && !devices.some(device => device.id === state.device?.id)
+      ? [{id: state.device.id, name: state.device.name, isActive: true, volume: state.device.volume}, ...devices]
+      : devices;
 
   if (!connected) {
     return (
@@ -209,9 +260,22 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
         {track?.artwork && <img key={`bg-${track.artwork}`} className="player-bg" src={track.artwork} alt="" />}
         <div className="player-top">
           <h2>Spotify</h2>
-          <button type="button" className="status" onClick={openDevices}>
+          <label className="status select-wrap">
             <Icon name="speaker" /> {state?.device?.name ?? 'no device'}
-          </button>
+            <select
+              value={state?.device?.id ?? ''}
+              aria-label="Spotify Connect device"
+              onPointerDown={loadDevices}
+              onChange={event => transferTo(event.target.value)}
+            >
+              {!state?.device && <option value="">No device</option>}
+              {deviceOptions.map(device => (
+                <option key={device.id} value={device.id}>
+                  {device.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <div className="player-middle">
           <button
@@ -234,20 +298,7 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
           </button>
         </div>
         <div className="player-bottom">
-          <div className="player-title-row">
-            <div className="player-title">{track?.name ?? (state ? 'Nothing playing' : '…')}</div>
-            {track && (
-              <button
-                type="button"
-                className={`heart ${track.saved ? 'on' : ''}`}
-                aria-label={track.saved ? 'Remove from Liked Songs' : 'Add to Liked Songs'}
-                aria-pressed={track.saved}
-                onClick={() => like(track)}
-              >
-                <Icon name="heart" filled={track.saved} />
-              </button>
-            )}
-          </div>
+          <div className="player-title">{track?.name ?? (state ? 'Nothing playing' : '…')}</div>
           <div className="player-artist">{track?.artists ?? ''}</div>
           <div className="seek" onClick={seek} role="progressbar" aria-valuenow={Math.round(ratio * 100)}>
             <div className="seek-fill" style={{width: `${ratio * 100}%`}} />
@@ -277,7 +328,17 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
               <Icon name="next" />
             </button>
           </div>
-          <div className="row volume-row">
+          <div className="row">
+            <button
+              type="button"
+              className={`round small heart ${track?.saved ? 'on' : ''}`}
+              aria-label={track?.saved ? 'Remove from Liked Songs' : 'Add to Liked Songs'}
+              aria-pressed={track?.saved ?? false}
+              disabled={!track}
+              onClick={() => track && like(track)}
+            >
+              <Icon name="heart" filled={track?.saved ?? false} />
+            </button>
             <button
               type="button"
               className={`round small ${state?.shuffle ? '' : 'muted'}`}
@@ -286,14 +347,6 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
             >
               <Icon name="shuffle" />
             </button>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={volume ?? 0}
-              aria-label="Spotify volume"
-              onChange={event => changeVolume(Number(event.target.value))}
-            />
             <button
               type="button"
               className={`round small ${'off' === state?.repeat ? 'muted' : ''}`}
@@ -303,47 +356,41 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
               <Icon name="repeat" />
               {'track' === state?.repeat && <span className="badge">1</span>}
             </button>
-            <button type="button" className="round small" aria-label="Playlists" onClick={openPlaylists}>
+            <label className="round small select-wrap">
               <Icon name="list" />
+              <select
+                value=""
+                aria-label="Playlists"
+                onPointerDown={loadPlaylists}
+                onChange={event => playPlaylist(event.target.value)}
+              >
+                <option value="">Playlists…</option>
+                {playlists.map(playlist => (
+                  <option key={playlist.id} value={playlist.uri}>
+                    {playlist.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="row volume-row">
+            <button type="button" className="step" aria-label="Volume down" onClick={() => stepVolume(-VOLUME_STEP)}>
+              <Icon name="volumeDown" />
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={volume ?? 0}
+              aria-label="Spotify volume"
+              onChange={event => changeVolume(Number(event.target.value))}
+            />
+            <button type="button" className="step" aria-label="Volume up" onClick={() => stepVolume(VOLUME_STEP)}>
+              <Icon name="volumeUp" />
             </button>
           </div>
         </div>
       </div>
-      {devices && (
-        <div className="row">
-          {devices.map(device => (
-            <button
-              key={device.id}
-              type="button"
-              className={`chip ${device.isActive ? 'on' : ''}`}
-              onClick={() => {
-                setDevices(null);
-                act(() => api.spotify.transfer(device.id, state?.isPlaying ?? false), `🔈 ${device.name}`);
-              }}
-            >
-              {device.name}
-            </button>
-          ))}
-          {0 === devices.length && <span className="status">No Spotify Connect device online</span>}
-        </div>
-      )}
-      {playlists && (
-        <div className="row">
-          {playlists.map(playlist => (
-            <button
-              key={playlist.id}
-              type="button"
-              className={`chip ${playlist.uri === state?.contextUri ? 'on' : ''}`}
-              onClick={() => {
-                setPlaylists(null);
-                act(() => api.spotify.play({contextUri: playlist.uri}), `▶️ ${playlist.name}`);
-              }}
-            >
-              {playlist.name}
-            </button>
-          ))}
-        </div>
-      )}
     </section>
   );
 };
