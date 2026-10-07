@@ -121,8 +121,8 @@ tailscale funnel status            # shows the public URL
 
 In one go: create a reusable auth key in the Tailscale admin console (Settings → Keys), add it to `agent/.env` as
 `TS_AUTHKEY=tskey-auth-…` and run `agent/deploy/install-pi.sh`. Enabling Funnel on the tailnet is a one-time setting
-that survives reinstalls. The node is named `hk` in Tailscale (`sudo tailscale set --hostname hk`, the Pi's own
-hostname stays `volumio`). After a reflash, remove the old `hk` machine in the admin console first and set the
+that survives reinstalls. The node is named `hk` in Tailscale (`TS_HOSTNAME` in `agent/.env`, passed to `tailscale up` by the install script;
+the Pi's own hostname stays `volumio`). After a reflash, remove the old `hk` machine in the admin console first and set the
 hostname again, otherwise the new one is named `hk-1` and the URL changes.
 
 Then enter the Funnel URL and the token in the app, or open

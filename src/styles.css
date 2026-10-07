@@ -149,68 +149,46 @@ button:active {
   opacity: 0.5;
 }
 
+.panel.compact {
+  gap: 14px;
+}
+
 .lights {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
   width: 100%;
 }
 
 .light {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 4px 10px;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: #0d0d0d;
-  color: var(--muted);
-  transition:
-    background-color 400ms ease,
-    border-color 400ms ease,
-    color 400ms ease;
-}
-
-.light-bulb {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  width: 44px;
-  height: 44px;
-  border: 1px solid currentColor;
+  width: 46px;
+  height: 46px;
+  border: 1px solid var(--line);
   border-radius: 50%;
+  background: #0d0d0d;
+  color: var(--muted);
   font-size: 22px;
   transition:
     background-color 400ms ease,
     box-shadow 400ms ease,
+    color 400ms ease,
     opacity 400ms ease;
 }
 
-.light-name {
-  font-size: 0.7rem;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .light.on {
-  background: color-mix(in srgb, var(--light) 18%, #000);
-  border-color: color-mix(in srgb, var(--light) 60%, #000);
-  color: var(--light);
-}
-
-.light.on .light-bulb {
   background: var(--light);
-  color: #000;
   border-color: transparent;
-  box-shadow: 0 0 calc(10px + 14px * var(--level)) var(--light);
-  opacity: calc(0.45 + 0.55 * var(--level));
+  color: #000;
+  box-shadow: 0 0 calc(8px + 12px * var(--level)) var(--light);
+  opacity: calc(0.5 + 0.5 * var(--level));
 }
 
 .light.dim {
-  opacity: 0.35;
+  opacity: 0.3;
 }
 
 .swatches {
@@ -223,7 +201,7 @@ button:active {
 .swatch {
   flex: 1;
   aspect-ratio: 1;
-  max-width: 56px;
+  max-width: 40px;
   border-radius: 50%;
   border: 2px solid transparent;
   box-shadow: inset 0 -6px 12px rgba(0, 0, 0, 0.25);
@@ -242,7 +220,7 @@ button:active {
   align-items: center;
   border-color: var(--line);
   color: var(--muted);
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   box-shadow: none;
 }
 

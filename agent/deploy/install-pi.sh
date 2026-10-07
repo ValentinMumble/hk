@@ -58,9 +58,12 @@ curl -fsS -H "Authorization: Bearer $token" "http://$host_only:8787/"
 echo
 
 ts_key="${TS_AUTHKEY:-$(grep -E '^TS_AUTHKEY=' "$AGENT_DIR/.env" | cut -d= -f2- || true)}"
+ts_hostname="${TS_HOSTNAME:-$(grep -E '^TS_HOSTNAME=' "$AGENT_DIR/.env" | cut -d= -f2- || true)}"
+ts_hostname="${ts_hostname:-hk}"
 if [ -n "$ts_key" ]; then
-  say "Tailscale + Funnel"
-  ssh -t "$HOST" "command -v tailscale >/dev/null || curl -fsSL https://tailscale.com/install.sh | sh; sudo tailscale up --authkey='$ts_key' && sudo tailscale funnel --bg 8787 && tailscale funnel status"
+  say "Tailscale + Funnel (node name: $ts_hostname)"
+  # tailscale up must list every non-default setting each time, hence --hostname on every run
+  ssh -t "$HOST" "command -v tailscale >/dev/null || curl -fsSL https://tailscale.com/install.sh | sh; sudo tailscale up --authkey='$ts_key' --hostname='$ts_hostname' && sudo tailscale funnel --bg 8787 && tailscale funnel status"
 else
   say "Agent installed. It is only reachable on the LAN until it has a public HTTPS URL."
   cat <<'TXT'

@@ -1,10 +1,20 @@
 import {useCallback, useEffect, useRef, useState, type CSSProperties} from 'react';
 import type {Api, Light} from './api';
-import {Icon} from './Icon';
+import {Icon, type IconName} from './Icon';
 import {attempt} from './toast';
 
 const COLORS = ['#ffffff', '#ffaa71', '#01a7c2', '#57b133', '#b13333', '#ff96ca'];
 const BRIGHTNESS_DEBOUNCE = 300;
+
+/** Icons by light name, like the old app did; anything else is a plain bulb. */
+const ICONS: Record<string, IconName> = {
+  boule: 'ball',
+  strip: 'strip',
+  pied: 'floorLamp',
+  applique: 'wallLamp',
+  porte: 'door',
+};
+const lightIcon = (name: string): IconName => ICONS[name.trim().toLowerCase()] ?? 'bulb';
 
 const useDebounced = <T extends unknown[]>(callback: (...args: T) => void, delay: number) => {
   const timer = useRef<number | undefined>(undefined);
@@ -61,7 +71,7 @@ export const Lights = ({api}: {api: Api}) => {
   const onCount = lights.filter(light => light.on).length;
 
   return (
-    <section className="panel">
+    <section className="panel compact">
       <header className="panel-header">
         <h2>Lights</h2>
         <button type="button" className="status" onClick={refresh}>
@@ -76,12 +86,11 @@ export const Lights = ({api}: {api: Api}) => {
             className={`light ${light.on ? 'on' : ''} ${light.reachable ? '' : 'dim'}`}
             style={lightStyle(light)}
             aria-pressed={light.on}
+            aria-label={light.name}
+            title={light.name}
             onClick={() => toggle(light)}
           >
-            <span className="light-bulb">
-              <Icon name="bulb" />
-            </span>
-            <span className="light-name">{light.name}</span>
+            <Icon name={lightIcon(light.name)} />
           </button>
         ))}
       </div>

@@ -15,6 +15,11 @@ const PATHS = {
   speaker:
     'M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM12 18a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 6h.01',
   list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+  ball: 'M12 3a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM9 22h6',
+  strip: 'M2 12c2-5 4-5 6 0s4 5 6 0 4-5 6 0M5 7h.01M12 17h.01M19 7h.01',
+  floorLamp: 'M7 10h10l-2.5-7h-5L7 10zM12 10v11M8.5 21h7',
+  wallLamp: 'M4 3v18M4 10h5M9 14l2-8h8l2 8H9z',
+  door: 'M5 21V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v17M3 21h18M15 12h.01',
 };
 
 export type IconName = keyof typeof PATHS;
