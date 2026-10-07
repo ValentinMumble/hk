@@ -1,6 +1,40 @@
 import type {Settings} from './settings';
 
-export type AgentInfo = {ok: boolean; mock: boolean; sources: string[]};
+export type AgentInfo = {
+  ok: boolean;
+  mock: boolean;
+  sources: string[];
+  spotify: {configured: boolean; connected: boolean};
+};
+export type RepeatState = 'off' | 'track' | 'context';
+export type PlaybackState = {
+  isPlaying: boolean;
+  progressMs: number;
+  readAt: number;
+  shuffle: boolean;
+  repeat: RepeatState;
+  device: {id: string; name: string; volume: number} | null;
+  track: {
+    id: string;
+    uri: string;
+    name: string;
+    artists: string;
+    album: string;
+    artwork: string | null;
+    durationMs: number;
+  } | null;
+  contextUri: string | null;
+};
+export type SpotifyDevice = {id: string; name: string; isActive: boolean; volume: number};
+export type SpotifyPlaylist = {id: string; uri: string; name: string; image: string | null};
+export type SpotifyTrack = {
+  id: string;
+  uri: string;
+  name: string;
+  artists: string;
+  album: string;
+  artwork: string | null;
+};
 export type Light = {id: string; name: string; on: boolean; reachable: boolean; brightness: number; hasColor: boolean};
 export type HueState = {on?: boolean; color?: string; brightness?: number};
 
@@ -39,6 +73,24 @@ export const createApi = ({agentUrl, token}: Settings) => {
     allLights: (state: HueState) => call('POST', '/hue/all', state),
     setLight: (id: string, state: HueState) => call('POST', `/hue/lights/${id}`, state),
     toggleLight: (id: string) => call<{on: boolean}>('POST', `/hue/lights/${id}/toggle`),
+    spotify: {
+      authUrl: (redirect: string, state: string) =>
+        call<{url: string}>('GET', `/spotify/auth-url?${new URLSearchParams({redirect, state})}`),
+      authorize: (code: string, redirectUri: string) => call('POST', '/spotify/authorize', {code, redirectUri}),
+      state: () => call<PlaybackState>('GET', '/spotify/state'),
+      play: (body: {uri?: string; contextUri?: string} = {}) => call('POST', '/spotify/play', body),
+      pause: () => call('POST', '/spotify/pause', {}),
+      next: () => call('POST', '/spotify/next', {}),
+      previous: () => call('POST', '/spotify/previous', {}),
+      seek: (positionMs: number) => call('POST', '/spotify/seek', {positionMs}),
+      volume: (percent: number) => call('POST', '/spotify/volume', {percent}),
+      shuffle: (state: boolean) => call('POST', '/spotify/shuffle', {state}),
+      repeat: (state: RepeatState) => call('POST', '/spotify/repeat', {state}),
+      transfer: (deviceId: string, play: boolean) => call('POST', '/spotify/transfer', {deviceId, play}),
+      devices: () => call<SpotifyDevice[]>('GET', '/spotify/devices'),
+      playlists: () => call<SpotifyPlaylist[]>('GET', '/spotify/playlists'),
+      search: (query: string) => call<SpotifyTrack[]>('GET', `/spotify/search?${new URLSearchParams({q: query})}`),
+    },
   };
 };
 

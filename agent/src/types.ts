@@ -24,4 +24,55 @@ export type Hk = {
   send(command: string, para?: string): Promise<string | undefined>;
 };
 
-export type Devices = {hk: Hk; hue: Hue};
+export type PlaybackState = {
+  isPlaying: boolean;
+  /** Position in the track when the state was read, with the time it was read. */
+  progressMs: number;
+  readAt: number;
+  shuffle: boolean;
+  repeat: 'off' | 'track' | 'context';
+  device: {id: string; name: string; volume: number} | null;
+  track: {
+    id: string;
+    uri: string;
+    name: string;
+    artists: string;
+    album: string;
+    artwork: string | null;
+    durationMs: number;
+  } | null;
+  contextUri: string | null;
+};
+
+export type SpotifyDevice = {id: string; name: string; isActive: boolean; volume: number};
+export type SpotifyPlaylist = {id: string; uri: string; name: string; image: string | null};
+export type SpotifyTrack = {
+  id: string;
+  uri: string;
+  name: string;
+  artists: string;
+  album: string;
+  artwork: string | null;
+};
+
+export type Spotify = {
+  connected(): boolean;
+  authorizeUrl(redirectUri: string, state: string): string;
+  authorize(code: string, redirectUri: string): Promise<void>;
+  logout(): void;
+  state(): Promise<PlaybackState>;
+  play(body: {uri?: string; contextUri?: string}): Promise<void>;
+  pause(): Promise<void>;
+  next(): Promise<void>;
+  previous(): Promise<void>;
+  seek(positionMs: number): Promise<void>;
+  volume(percent: number): Promise<void>;
+  shuffle(state: boolean): Promise<void>;
+  repeat(state: PlaybackState['repeat']): Promise<void>;
+  transfer(deviceId: string, play: boolean): Promise<void>;
+  devices(): Promise<SpotifyDevice[]>;
+  playlists(): Promise<SpotifyPlaylist[]>;
+  search(query: string): Promise<SpotifyTrack[]>;
+};
+
+export type Devices = {hk: Hk; hue: Hue; spotify: Spotify | null};

@@ -1,5 +1,5 @@
 import {HK_COMMANDS} from './hk.js';
-import type {Devices, HueState, Light} from './types.js';
+import type {Devices, HueState, Light, PlaybackState, SpotifyDevice, SpotifyPlaylist, SpotifyTrack} from './types.js';
 
 const STATUS_REPLY =
   '<?xml version="1.0" encoding="UTF-8"?><harman><avr><common><status><name>heart-alive</name><zone>Main Zone</zone><para>on</para></status></common></avr></harman>';
@@ -26,7 +26,114 @@ export const createMockDevices = (): Devices => {
     if (undefined !== brightness) light.brightness = brightness;
   };
 
+  const tracks: SpotifyTrack[] = [
+    {id: 't1', uri: 'spotify:track:t1', name: 'Mock Song', artists: 'The Mocks', album: 'Mockumentary', artwork: null},
+    {
+      id: 't2',
+      uri: 'spotify:track:t2',
+      name: 'Second Take',
+      artists: 'Stub & Fake',
+      album: 'Placeholder',
+      artwork: null,
+    },
+  ];
+  const spotifyDevices: SpotifyDevice[] = [
+    {id: 'd1', name: 'Volumio', isActive: true, volume: 40},
+    {id: 'd2', name: 'MacMumble', isActive: false, volume: 100},
+  ];
+  const playlists: SpotifyPlaylist[] = [
+    {id: 'p1', uri: 'spotify:playlist:p1', name: 'OK', image: null},
+    {id: 'p2', uri: 'spotify:playlist:p2', name: 'Discover Weekly', image: null},
+  ];
+  let connected = true;
+  let trackIndex = 0;
+  let playback: PlaybackState = {
+    isPlaying: true,
+    progressMs: 30_000,
+    readAt: Date.now(),
+    shuffle: false,
+    repeat: 'off',
+    device: {id: 'd1', name: 'Volumio', volume: 40},
+    track: {...tracks[0], durationMs: 180_000},
+    contextUri: null,
+  };
+
+  /** Advance the position as time passes, loop at the end. */
+  const tick = (): PlaybackState => {
+    const now = Date.now();
+
+    if (playback.isPlaying && playback.track) {
+      playback.progressMs = (playback.progressMs + now - playback.readAt) % playback.track.durationMs;
+    }
+    playback.readAt = now;
+
+    return {
+      ...playback,
+      track: playback.track ? {...playback.track} : null,
+      device: playback.device ? {...playback.device} : null,
+    };
+  };
+
+  const skip = (direction: 1 | -1) => {
+    trackIndex = (trackIndex + direction + tracks.length) % tracks.length;
+    playback.track = {...tracks[trackIndex], durationMs: 180_000};
+    playback.progressMs = 0;
+    playback.readAt = Date.now();
+  };
+
   return {
+    spotify: {
+      connected: () => connected,
+      authorizeUrl: (redirectUri, state) => `${redirectUri}?code=mock&state=${encodeURIComponent(state)}`,
+      authorize: async () => {
+        connected = true;
+      },
+      logout: () => {
+        connected = false;
+      },
+      state: async () => tick(),
+      play: async ({uri, contextUri}) => {
+        tick();
+        if (uri) {
+          const found = tracks.find(track => track.uri === uri);
+          if (found) {
+            trackIndex = tracks.indexOf(found);
+            playback.track = {...found, durationMs: 180_000};
+            playback.progressMs = 0;
+          }
+        }
+        if (contextUri) playback.contextUri = contextUri;
+        playback.isPlaying = true;
+      },
+      pause: async () => {
+        tick();
+        playback.isPlaying = false;
+      },
+      next: async () => skip(1),
+      previous: async () => skip(-1),
+      seek: async positionMs => {
+        playback.progressMs = positionMs;
+        playback.readAt = Date.now();
+      },
+      volume: async percent => {
+        if (playback.device) playback.device.volume = percent;
+      },
+      shuffle: async state => {
+        playback.shuffle = state;
+      },
+      repeat: async state => {
+        playback.repeat = state;
+      },
+      transfer: async (deviceId, play) => {
+        const device = spotifyDevices.find(candidate => candidate.id === deviceId);
+        if (device) playback.device = {id: device.id, name: device.name, volume: device.volume};
+        playback.isPlaying = play;
+      },
+      devices: async () => spotifyDevices.map(device => ({...device, isActive: device.id === playback.device?.id})),
+      playlists: async () => playlists,
+      search: async query =>
+        tracks.filter(track => `${track.name} ${track.artists}`.toLowerCase().includes(query.toLowerCase())),
+    },
     hk: {
       send: async (command, para) => {
         console.log(`[mock] HK ${command}${para ? ` "${para}"` : ''}`);

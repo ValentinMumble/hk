@@ -1,6 +1,6 @@
 # 🔈 HK
 
-Phone remote for the living room: the Harman Kardon amp (HK3700) and the Hue lights.
+Phone remote for the living room: the Harman Kardon amp (HK3700), Spotify and the Hue lights.
 
 ```
 phone ──HTTPS──▶ hk.vumble.dev (Vercel, static)
@@ -152,6 +152,26 @@ The Vercel project `hk` is Git-connected to `ValentinMumble/hk`: every push to `
 `https://hk.vumble.dev`. There is no server-side configuration and no environment variable on Vercel. To redo it from
 scratch: import the repo in Vercel (framework preset: Vite, root directory `/`) and attach the domain, the wildcard
 `*.vumble.dev` already points to Vercel.
+
+## Spotify
+
+Like the old server, the agent holds one Spotify session for every client (tokens in `spotify.json` next to `dist/`
+on the Pi, refreshed automatically). That matters on iOS: the home-screen app cannot finish an OAuth redirect itself,
+so the login happens in any browser once and every client just polls the agent.
+
+Setup, once:
+
+1. In the [Spotify developer dashboard](https://developer.spotify.com/dashboard), the app needs the redirect URIs
+   `https://hk.vumble.dev/` and `http://127.0.0.1:5181/` (dev). Its client id and secret go in `agent/.env` as
+   `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`, then `agent/deploy/install-pi.sh`.
+2. Tap "Connect Spotify" in the app and approve. After a reflash of the Pi, tap it again.
+
+`SPOTIFY_DEFAULT_DEVICE` (default `Volumio`) is the Spotify Connect device the agent wakes up when a command fails
+because nothing is playing anywhere.
+
+Routes (behind the token): `GET /spotify/state`, `devices`, `playlists`, `search?q=`, `auth-url?redirect=&state=`;
+`POST /spotify/play {uri?|contextUri?}`, `pause`, `next`, `previous`, `seek {positionMs}`, `volume {percent}`,
+`shuffle {state}`, `repeat {state}`, `transfer {deviceId, play}`, `authorize {code, redirectUri}`, `logout`.
 
 ## Hue notes
 

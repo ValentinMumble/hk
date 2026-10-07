@@ -1,7 +1,8 @@
-import {useEffect, useMemo, useState} from 'react';
+import {useCallback, useEffect, useMemo, useState} from 'react';
 import {createApi, type AgentInfo} from './api';
 import {Icon} from './Icon';
 import {Lights} from './Lights';
+import {Player} from './Player';
 import {loadSettings, saveSettings, type Settings} from './settings';
 import {Setup} from './Setup';
 import {Sound} from './Sound';
@@ -14,12 +15,16 @@ export const App = () => {
 
   const api = useMemo(() => (settings ? createApi(settings) : null), [settings]);
 
-  useEffect(() => {
+  const loadInfo = useCallback(() => {
     if (!api) return;
 
-    setInfo(null);
     attempt(async () => setInfo(await api.info()));
   }, [api]);
+
+  useEffect(() => {
+    setInfo(null);
+    loadInfo();
+  }, [loadInfo]);
 
   if (!api || isEditing) {
     return (
@@ -38,6 +43,7 @@ export const App = () => {
     <>
       <main>
         <Sound api={api} sources={info?.sources ?? []} />
+        {info?.spotify.configured && <Player api={api} connected={info.spotify.connected} onConnected={loadInfo} />}
         <Lights api={api} />
       </main>
       <footer>
