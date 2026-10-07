@@ -15,6 +15,9 @@ html,
 body {
   margin: 0;
   background: var(--bg);
+  background-image: radial-gradient(70% 45% at 50% 0%, color-mix(in srgb, var(--accent) 22%, #000) 0%, #000 100%);
+  background-attachment: fixed;
+  transition: background-image 800ms ease;
   color: var(--fg);
   font-family: ui-monospace, Menlo, monospace;
   -webkit-tap-highlight-color: transparent;
@@ -24,31 +27,71 @@ body {
 main {
   display: flex;
   flex-direction: column;
-  justify-content: space-evenly;
-  gap: 32px;
+  justify-content: center;
+  gap: 24px;
   max-width: 480px;
-  min-height: 100dvh;
+  height: 100dvh;
   margin: 0 auto;
-  padding: 24px 16px 0;
-  padding-top: max(24px, env(safe-area-inset-top));
+  padding: calc(env(safe-area-inset-top, 0px) + 44px) 16px calc(env(safe-area-inset-bottom, 0px) + 92px);
+  overflow-y: auto;
+  animation: rise 260ms ease;
 }
 
-footer {
+.panel-body {
   display: flex;
-  justify-content: center;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-evenly;
   align-items: center;
   gap: 16px;
-  padding: 16px;
-  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  width: 100%;
+  min-height: 0;
+}
+
+.player-middle {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  min-height: 0;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  padding-top: max(10px, env(safe-area-inset-top));
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
+  pointer-events: none;
+}
+
+.topbar button {
+  pointer-events: auto;
+  font-size: 1.2rem;
 }
 
 .panel {
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   gap: 20px;
+  width: 100%;
+  min-height: 0;
 }
 
 .panel-header {
@@ -352,9 +395,11 @@ input[type='range'] {
 .player {
   position: relative;
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   width: 100%;
+  min-height: 0;
   padding: 20px;
   border-radius: 28px;
   overflow: hidden;
@@ -534,4 +579,231 @@ input[type='range'] {
 
 .player input[type='range'] {
   accent-color: #fff;
+}
+
+/* Liquid glass tab bar */
+.glass {
+  position: relative;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.16),
+    rgba(255, 255, 255, 0.05) 55%,
+    rgba(255, 255, 255, 0.09)
+  );
+  -webkit-backdrop-filter: blur(34px) saturate(200%) brightness(1.08);
+  backdrop-filter: blur(34px) saturate(200%) brightness(1.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.6),
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4),
+    inset 0 -2px 8px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* specular highlight along the top edge */
+.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0) 60%);
+  pointer-events: none;
+}
+
+.tabbar {
+  position: fixed;
+  left: 50%;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 10;
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  --tab-width: 80px;
+}
+
+.tab {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: var(--tab-width);
+  padding: 9px 0 7px;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  transition: color 300ms ease;
+}
+
+.tab svg {
+  font-size: 1.3rem;
+}
+
+.tab.active {
+  color: #fff;
+}
+
+.tab:active {
+  transform: scale(0.95);
+}
+
+/* the lens that slides under the active tab */
+.tab-glow {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 6px;
+  width: var(--tab-width);
+  border-radius: 999px;
+  background: radial-gradient(
+    110% 130% at 50% -10%,
+    rgba(255, 255, 255, 0.5),
+    rgba(255, 255, 255, 0.16) 55%,
+    rgba(255, 255, 255, 0.1)
+  );
+  -webkit-backdrop-filter: blur(6px) brightness(1.25) saturate(160%);
+  backdrop-filter: blur(6px) brightness(1.25) saturate(160%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.18),
+    inset 1px 0 0 rgba(255, 255, 255, 0.18),
+    inset -1px 0 0 rgba(255, 255, 255, 0.18),
+    0 6px 18px rgba(0, 0, 0, 0.35);
+  transform: translateX(calc(var(--index) * (var(--tab-width) + 4px)));
+  transition: transform 520ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+/* colour wheel: hue around, white in the centre */
+.wheel {
+  position: relative;
+  width: min(62vw, 240px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, #fff 0%, rgba(255, 255, 255, 0) 72%),
+    conic-gradient(from 0deg, #ff0040, #ff8000, #ffff00, #00ff40, #00ffff, #0040ff, #ff00ff, #ff0040);
+  box-shadow:
+    inset 0 0 30px rgba(0, 0, 0, 0.35),
+    0 10px 30px rgba(0, 0, 0, 0.5);
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.wheel-dot {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* Phones (iPhone 16 Pro is 402 x 874): each tab fills the screen, bigger targets */
+@media (max-width: 430px) {
+  .round.big {
+    width: 132px;
+    height: 132px;
+    font-size: 72px;
+  }
+
+  .player .round.big.play {
+    width: 80px;
+    height: 80px;
+    font-size: 42px;
+  }
+
+  .disc {
+    width: min(70vw, 300px);
+  }
+
+  .light {
+    width: 58px;
+    height: 58px;
+    font-size: 27px;
+  }
+
+  .swatch {
+    max-width: 52px;
+  }
+
+  input[type='range'] {
+    height: 52px;
+  }
+}
+
+.lyrics-panel {
+  justify-content: flex-start;
+}
+
+.lyrics {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  padding: 18px 20px;
+  border-radius: 24px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.88);
+  -webkit-overflow-scrolling: touch;
+}
+
+.track {
+  text-align: center;
+  max-width: 100%;
+}
+
+.track-name {
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-artist {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+a.status {
+  text-decoration: none;
+}
+
+.player-title-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.player-title-row .player-title {
+  min-width: 0;
+}
+
+.heart {
+  flex: none;
+  font-size: 1.3rem;
+  color: rgba(255, 255, 255, 0.55);
+  transition:
+    color 300ms ease,
+    transform 200ms ease;
+}
+
+.heart.on {
+  color: #ff4d6d;
+}
+
+.heart:active {
+  transform: scale(1.25);
 }

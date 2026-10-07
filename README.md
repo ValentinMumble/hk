@@ -1,6 +1,7 @@
 # 🔈 HK
 
-Phone remote for the living room: the Harman Kardon amp (HK3700), Spotify and the Hue lights.
+Phone remote for the living room: Spotify, the Harman Kardon amp (HK3700), the Hue lights and the lyrics of what
+plays. Four tabs behind a floating glass tab bar, each laid out to fill an iPhone screen; swipe or use the arrow keys.
 
 ```
 phone ──HTTPS──▶ hk.vumble.dev (Vercel, static)
@@ -24,7 +25,8 @@ Everything is deployed: the web app at https://hk.vumble.dev, the agent on the V
 
 **New phone**
 
-1. On the Mac: `agent/deploy/phone-link.sh` (copies the setup link, with the agent URL and the token, to the clipboard).
+1. On the Mac: `agent/deploy/phone-link.sh` (copies the setup link, with the agent URL and the token, to the clipboard;
+   `agent/deploy/phone-link.sh http://192.168.1.13:8787 http://127.0.0.1:5181` makes the local-dev variant).
 2. On the phone: paste it in Safari (Universal Clipboard works from the Mac). The app configures itself and keeps the
    settings.
 3. Share → Add to Home Screen, from that same page. The home-screen app starts configured too. If it ever asks again,
@@ -175,12 +177,24 @@ Routes (behind the token): `GET /spotify/state`, `devices`, `playlists`, `search
 `POST /spotify/play {uri?|contextUri?}`, `pause`, `next`, `previous`, `seek {positionMs}`, `volume {percent}`,
 `shuffle {state}`, `repeat {state}`, `transfer {deviceId, play}`, `authorize {code, redirectUri}`, `logout`.
 
+## Lyrics
+
+The Lyrics tab shows the words of the current Spotify track through Genius, like the old server: the Genius API finds the
+song, the song page holds the text. Needs `GENIUS_TOKEN` in `agent/.env` (an API client token from
+https://genius.com/api-clients). Route: `GET /lyrics` (current track) or `GET /lyrics?artist=&title=`. Results are cached
+per track on the agent.
+
 ## Hue notes
 
 - Recent bridge firmware only answers over HTTPS with a self-signed certificate. The agent accepts it. For an old bridge
   set `HUE_URL=http://<ip>`.
 - Find the bridge IP: `curl https://discovery.meethue.com/`.
 - Colours are sent as CIE `xy` (Wide RGB D65 matrix from the Hue docs); lights without colour just get `on` and brightness.
+  The agent also reports each light's current colour (from `xy` or the colour temperature) for the tiles.
+- Extras in the Hue tab: moods (a palette spread over the colour lights, one colour each), Party (random colour per lamp),
+  Music (the current album colour), a colour loop (`effect: colorloop`), Blink (`alert: select`), Fade out
+  (`on: false` with a 10 minute `transition`) and a free colour picker. The `/hue/all` and `/hue/lights/<id>` bodies
+  accept `effect`, `alert` and `transition` (seconds) besides `on`, `color` and `brightness`.
 
 ## HK notes
 

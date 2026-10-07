@@ -16,6 +16,8 @@ export const SPOTIFY_SCOPES = [
   'user-modify-playback-state',
   'user-read-currently-playing',
   'playlist-read-private',
+  'user-library-read',
+  'user-library-modify',
 ];
 
 type Tokens = {accessToken: string; refreshToken: string; expiresAt: number};
@@ -129,7 +131,7 @@ export const toPlaybackState = (raw: unknown): PlaybackState => {
       : null,
     track:
       state.item && 'track' === (state.item.type ?? 'track')
-        ? {...toTrack(state.item), durationMs: state.item.duration_ms}
+        ? {...toTrack(state.item), durationMs: state.item.duration_ms, saved: false}
         : null,
     contextUri: state.context?.uri ?? null,
   };
@@ -217,6 +219,22 @@ export const createSpotify = ({clientId, clientSecret, defaultDevice, tokensFile
     return data;
   };
 
+  /** Whether tracks are in Liked Songs, remembered per track so polling does not ask every time. */
+  const savedCache = new Map<string, boolean>();
+
+  const isSaved = async (trackId: string): Promise<boolean> => {
+    const cached = savedCache.get(trackId);
+
+    if (undefined !== cached) return cached;
+
+    const reply = (await api('GET', '/me/tracks/contains', {query: {ids: trackId}})) as boolean[];
+    const saved = reply[0] ?? false;
+    savedCache.set(trackId, saved);
+    if (savedCache.size > 50) savedCache.delete(savedCache.keys().next().value as string);
+
+    return saved;
+  };
+
   const devices = async (): Promise<SpotifyDevice[]> => {
     const reply = (await api('GET', '/me/player/devices')) as {
       devices?: Array<{id: string; name: string; is_active: boolean; volume_percent?: number | null}>;
@@ -269,7 +287,20 @@ export const createSpotify = ({clientId, clientSecret, defaultDevice, tokensFile
       tokens = null;
       if (existsSync(tokensFile)) unlinkSync(tokensFile);
     },
-    state: async () => toPlaybackState(await api('GET', '/me/player')),
+    state: async () => {
+      const state = toPlaybackState(await api('GET', '/me/player'));
+
+      if (state.track) {
+        try {
+          state.track.saved = await isSaved(state.track.id);
+        } catch (error) {
+          // older sessions lack the library scope; the heart then shows as not saved
+          if (!(error instanceof SpotifyError && 403 === error.status)) throw error;
+        }
+      }
+
+      return state;
+    },
     play: ({uri, contextUri}) =>
       withDevice(() =>
         api('PUT', '/me/player/play', {body: uri ? {uris: [uri]} : contextUri ? {context_uri: contextUri} : {}}),
@@ -286,6 +317,10 @@ export const createSpotify = ({clientId, clientSecret, defaultDevice, tokensFile
     shuffle: state => withDevice(() => api('PUT', '/me/player/shuffle', {query: {state}})),
     repeat: state => withDevice(() => api('PUT', '/me/player/repeat', {query: {state}})),
     transfer,
+    like: async (trackId, saved) => {
+      await api(saved ? 'PUT' : 'DELETE', '/me/tracks', {query: {ids: trackId}});
+      savedCache.set(trackId, saved);
+    },
     devices,
     playlists: async () => {
       const reply = (await api('GET', '/me/playlists', {query: {limit: 50}})) as {

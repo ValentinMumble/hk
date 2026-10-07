@@ -5,7 +5,9 @@ export type AgentInfo = {
   mock: boolean;
   sources: string[];
   spotify: {configured: boolean; connected: boolean};
+  lyrics?: {configured: boolean};
 };
+export type LyricsResult = {trackId: string | null; title: string; artist: string; url: string; lyrics: string};
 export type RepeatState = 'off' | 'track' | 'context';
 export type PlaybackState = {
   isPlaying: boolean;
@@ -22,6 +24,7 @@ export type PlaybackState = {
     album: string;
     artwork: string | null;
     durationMs: number;
+    saved: boolean;
   } | null;
   contextUri: string | null;
 };
@@ -44,7 +47,14 @@ export type Light = {
   hasColor: boolean;
   color: string;
 };
-export type HueState = {on?: boolean; color?: string; brightness?: number};
+export type HueState = {
+  on?: boolean;
+  color?: string;
+  brightness?: number;
+  effect?: 'colorloop' | 'none';
+  alert?: 'select' | 'lselect' | 'none';
+  transition?: number;
+};
 
 export const createApi = ({agentUrl, token}: Settings) => {
   const call = async <T = undefined>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> => {
@@ -81,6 +91,7 @@ export const createApi = ({agentUrl, token}: Settings) => {
     allLights: (state: HueState) => call('POST', '/hue/all', state),
     setLight: (id: string, state: HueState) => call('POST', `/hue/lights/${id}`, state),
     toggleLight: (id: string) => call<{on: boolean}>('POST', `/hue/lights/${id}/toggle`),
+    lyrics: () => call<LyricsResult>('GET', '/lyrics'),
     spotify: {
       authUrl: (redirect: string, state: string) =>
         call<{url: string}>('GET', `/spotify/auth-url?${new URLSearchParams({redirect, state})}`),
@@ -95,6 +106,8 @@ export const createApi = ({agentUrl, token}: Settings) => {
       shuffle: (state: boolean) => call('POST', '/spotify/shuffle', {state}),
       repeat: (state: RepeatState) => call('POST', '/spotify/repeat', {state}),
       transfer: (deviceId: string, play: boolean) => call('POST', '/spotify/transfer', {deviceId, play}),
+      like: (trackId: string, saved: boolean) => call('POST', '/spotify/like', {trackId, saved}),
+      logout: () => call('POST', '/spotify/logout', {}),
       devices: () => call<SpotifyDevice[]>('GET', '/spotify/devices'),
       playlists: () => call<SpotifyPlaylist[]>('GET', '/spotify/playlists'),
       search: (query: string) => call<SpotifyTrack[]>('GET', `/spotify/search?${new URLSearchParams({q: query})}`),

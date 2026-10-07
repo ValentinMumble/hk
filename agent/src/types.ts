@@ -1,4 +1,14 @@
-export type HueState = {on?: boolean; color?: string; brightness?: number};
+export type HueState = {
+  on?: boolean;
+  color?: string;
+  brightness?: number;
+  /** Cycle through hues (colour lights only). */
+  effect?: 'colorloop' | 'none';
+  /** One blink, or breathe for 15 s. */
+  alert?: 'select' | 'lselect' | 'none';
+  /** Fade duration in seconds. */
+  transition?: number;
+};
 
 export type Light = {
   id: string;
@@ -42,6 +52,8 @@ export type PlaybackState = {
     album: string;
     artwork: string | null;
     durationMs: number;
+    /** In the user's Liked Songs. */
+    saved: boolean;
   } | null;
   contextUri: string | null;
 };
@@ -72,9 +84,17 @@ export type Spotify = {
   shuffle(state: boolean): Promise<void>;
   repeat(state: PlaybackState['repeat']): Promise<void>;
   transfer(deviceId: string, play: boolean): Promise<void>;
+  /** Add to or remove from Liked Songs. */
+  like(trackId: string, saved: boolean): Promise<void>;
   devices(): Promise<SpotifyDevice[]>;
   playlists(): Promise<SpotifyPlaylist[]>;
   search(query: string): Promise<SpotifyTrack[]>;
 };
 
-export type Devices = {hk: Hk; hue: Hue; spotify: Spotify | null};
+export type LyricsResult = {title: string; artist: string; url: string; lyrics: string};
+
+export type Lyrics = {
+  lookup(artist: string, title: string): Promise<LyricsResult>;
+};
+
+export type Devices = {hk: Hk; hue: Hue; spotify: Spotify | null; lyrics: Lyrics | null};

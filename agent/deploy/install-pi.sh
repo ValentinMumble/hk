@@ -10,7 +10,8 @@
 #   3. picks a Node: a private one under ~/hk-agent/node when an official build runs on the
 #      Pi's OS, otherwise the system Node if it is 14.13 or newer (Volumio's Node 14 on
 #      Raspbian Buster, where no Node 18+ build runs)
-#   4. installs a systemd unit so it starts at boot (asks the Pi's sudo password once)
+#   4. installs a systemd unit so it starts at boot and, with TS_AUTHKEY, sets up Tailscale
+#      and the Funnel, all in one sudo session (one password prompt)
 #   5. checks the agent answers
 # With TS_AUTHKEY set (in the environment or in agent/.env) it also installs Tailscale and
 # opens a Funnel, which gives the agent its public HTTPS URL.
@@ -38,7 +39,7 @@ say "3/5 Picking a Node"
 node_bin="$(ssh "$HOST" bash -s -- "$NODE_MAJOR" "$REMOTE_DIR" < "$AGENT_DIR/deploy/pick-node.sh")"
 [ -n "$node_bin" ] || { echo "no Node, giving up"; exit 1; }
 
-say "4/5 systemd unit (the Pi asks for its sudo password)"
+say "4/5 systemd unit and Tailscale (the Pi asks for its sudo password once)"
 remote_user="$(ssh "$HOST" 'id -un')"
 remote_home="$(ssh "$HOST" 'echo "$HOME"')"
 rendered_unit="$(mktemp)"
@@ -46,7 +47,20 @@ sed -e "s|__USER__|$remote_user|g" -e "s|__HOME__|$remote_home|g" -e "s|__NODE__
   "$AGENT_DIR/deploy/hk-agent.service" > "$rendered_unit"
 rsync -az "$rendered_unit" "$HOST:$REMOTE_DIR/hk-agent.service"
 rm -f "$rendered_unit"
-ssh -t "$HOST" "sudo bash -c 'install -m 644 ~$remote_user/$REMOTE_DIR/hk-agent.service /etc/systemd/system/hk-agent.service && systemctl daemon-reload && systemctl enable --quiet hk-agent && systemctl restart hk-agent'"
+
+ts_key="${TS_AUTHKEY:-$(grep -E '^TS_AUTHKEY=' "$AGENT_DIR/.env" | cut -d= -f2- || true)}"
+ts_hostname="${TS_HOSTNAME:-$(grep -E '^TS_HOSTNAME=' "$AGENT_DIR/.env" | cut -d= -f2- || true)}"
+ts_hostname="${ts_hostname:-hk}"
+
+# Everything that needs root runs in this one session, so sudo prompts a single time.
+privileged="install -m 644 ~$remote_user/$REMOTE_DIR/hk-agent.service /etc/systemd/system/hk-agent.service"
+privileged="$privileged && systemctl daemon-reload && systemctl enable --quiet hk-agent && systemctl restart hk-agent"
+if [ -n "$ts_key" ]; then
+  # tailscale up must list every non-default setting each time, hence --hostname on every run
+  privileged="$privileged && (command -v tailscale >/dev/null || curl -fsSL https://tailscale.com/install.sh | sh)"
+  privileged="$privileged && tailscale up --authkey='$ts_key' --hostname='$ts_hostname' && tailscale funnel --bg 8787 && tailscale funnel status"
+fi
+ssh -t "$HOST" "sudo bash -c \"$privileged\""
 
 say "5/5 Checking"
 sleep 2
@@ -57,14 +71,7 @@ printf 'agent:   '
 curl -fsS -H "Authorization: Bearer $token" "http://$host_only:8787/"
 echo
 
-ts_key="${TS_AUTHKEY:-$(grep -E '^TS_AUTHKEY=' "$AGENT_DIR/.env" | cut -d= -f2- || true)}"
-ts_hostname="${TS_HOSTNAME:-$(grep -E '^TS_HOSTNAME=' "$AGENT_DIR/.env" | cut -d= -f2- || true)}"
-ts_hostname="${ts_hostname:-hk}"
-if [ -n "$ts_key" ]; then
-  say "Tailscale + Funnel (node name: $ts_hostname)"
-  # tailscale up must list every non-default setting each time, hence --hostname on every run
-  ssh -t "$HOST" "command -v tailscale >/dev/null || curl -fsSL https://tailscale.com/install.sh | sh; sudo tailscale up --authkey='$ts_key' --hostname='$ts_hostname' && sudo tailscale funnel --bg 8787 && tailscale funnel status"
-else
+if [ -z "$ts_key" ]; then
   say "Agent installed. It is only reachable on the LAN until it has a public HTTPS URL."
   cat <<'TXT'
 To expose it with Tailscale Funnel, on the Pi:

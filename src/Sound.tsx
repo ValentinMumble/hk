@@ -33,25 +33,41 @@ export const Sound = ({api, sources}: SoundProps) => {
           {null === isOnline ? '…' : isOnline ? '● online' : '○ offline, tap to retry'}
         </button>
       </header>
-      <div className="row">
-        {sources.map(source => (
-          <button
-            key={source}
-            type="button"
-            className="chip"
-            onClick={() => attempt(() => api.hkSource(source), `📡 ${source}`)}
-          >
-            {source}
+      <div className="panel-body">
+        <div className="row">
+          {sources.map(source => (
+            <button
+              key={source}
+              type="button"
+              className="chip"
+              onClick={() => attempt(() => api.hkSource(source), `📡 ${source}`)}
+            >
+              {source}
+            </button>
+          ))}
+        </div>
+        <div className="row">
+          <button type="button" className="round big" aria-label="Volume down" onClick={() => run('volume-down', '👇')}>
+            <Icon name="volumeDown" />
           </button>
-        ))}
-      </div>
-      <div className="row">
-        <button type="button" className="round big" aria-label="Volume down" onClick={() => run('volume-down', '👇')}>
-          <Icon name="volumeDown" />
-        </button>
-        <button type="button" className="round big" aria-label="Volume up" onClick={() => run('volume-up', '👆')}>
-          <Icon name="volumeUp" />
-        </button>
+          <button type="button" className="round big" aria-label="Volume up" onClick={() => run('volume-up', '👆')}>
+            <Icon name="volumeUp" />
+          </button>
+        </div>
+        <div className="row">
+          <button type="button" className="round labeled" onClick={() => run('mute', '🔇')}>
+            <Icon name="mute" />
+            <span>mute</span>
+          </button>
+          <button type="button" className="round labeled" onClick={() => run('sleep', '😴 sleep')}>
+            <Icon name="sleep" />
+            <span>sleep</span>
+          </button>
+          <button type="button" className="round labeled muted" onClick={() => run('off', '🌚 off')}>
+            <Icon name="power" />
+            <span>off</span>
+          </button>
+        </div>
       </div>
     </section>
   );

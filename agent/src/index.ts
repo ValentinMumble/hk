@@ -2,6 +2,7 @@ import {timingSafeEqual} from 'node:crypto';
 import {createServer, type IncomingMessage} from 'node:http';
 import {HK_COMMANDS, sendCommand} from './hk.js';
 import {createHue} from './hue.js';
+import {createLyrics} from './lyrics.js';
 import {createMockDevices} from './mock.js';
 import {createSpotify} from './spotify.js';
 import type {Devices, HueState, PlaybackState} from './types.js';
@@ -17,6 +18,7 @@ const {
   SPOTIFY_CLIENT_SECRET = '',
   SPOTIFY_DEFAULT_DEVICE = '',
   SPOTIFY_TOKENS_FILE = 'spotify.json',
+  GENIUS_TOKEN = '',
   MOCK = '',
 } = process.env;
 
@@ -46,6 +48,7 @@ const devices: Devices = isMock
               tokensFile: SPOTIFY_TOKENS_FILE,
             })
           : null,
+      lyrics: GENIUS_TOKEN ? createLyrics(GENIUS_TOKEN) : null,
     };
 
 const sources = HK_SOURCES.split(',')
@@ -97,6 +100,9 @@ const toHueState = (body: Record<string, unknown>): HueState => ({
   ...('boolean' === typeof body.on ? {on: body.on} : {}),
   ...('string' === typeof body.color ? {color: body.color} : {}),
   ...('number' === typeof body.brightness ? {brightness: body.brightness} : {}),
+  ...('colorloop' === body.effect || 'none' === body.effect ? {effect: body.effect} : {}),
+  ...('select' === body.alert || 'lselect' === body.alert || 'none' === body.alert ? {alert: body.alert} : {}),
+  ...('number' === typeof body.transition ? {transition: body.transition} : {}),
 });
 
 type Result = {status?: number; body?: unknown};
@@ -193,6 +199,11 @@ const spotifyRoute = async (
 
         return done(spotify.transfer(text(body.deviceId, 'deviceId'), Boolean(body.play)));
       }
+      case 'like': {
+        const body = await readBody();
+
+        return done(spotify.like(text(body.trackId, 'trackId'), Boolean(body.saved)));
+      }
     }
   }
 
@@ -215,8 +226,31 @@ const route = async (
         mock: isMock,
         sources,
         spotify: {configured: null !== devices.spotify, connected: devices.spotify?.connected() ?? false},
+        lyrics: {configured: null !== devices.lyrics},
       },
     };
+  }
+
+  if ('lyrics' === root && 'GET' === method && 1 === segments.length) {
+    if (!devices.lyrics) throw new HttpError(404, 'Lyrics are not configured on the agent');
+
+    let artist = query.get('artist') ?? '';
+    let title = query.get('title') ?? '';
+    let trackId: string | null = null;
+
+    if (!artist || !title) {
+      if (!devices.spotify) throw new HttpError(400, 'Pass artist and title, Spotify is not configured');
+
+      const {track} = await devices.spotify.state();
+
+      if (!track) throw new HttpError(404, 'Nothing is playing');
+
+      artist = track.artists.split(',')[0].trim();
+      title = track.name;
+      trackId = track.id;
+    }
+
+    return {body: {trackId, ...(await devices.lyrics.lookup(artist, title))}};
   }
 
   if ('spotify' === root && segments.length <= 2) return spotifyRoute(method, second, query, readBody);

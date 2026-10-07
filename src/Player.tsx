@@ -134,6 +134,27 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
     }
   };
 
+  /** Like needs the library scopes; a session from before they existed is logged out so the next login asks for them. */
+  const like = (track: NonNullable<PlaybackState['track']>) =>
+    attempt(
+      async () => {
+        const saved = !track.saved;
+        setState(current => (current?.track ? {...current, track: {...current.track, saved}} : current));
+
+        try {
+          await api.spotify.like(track.id, saved);
+        } catch (error) {
+          if (error instanceof Error && /scope/i.test(error.message)) {
+            await api.spotify.logout();
+            onConnected();
+            throw new Error('Reconnect Spotify to like songs');
+          }
+          throw error;
+        }
+      },
+      track.saved ? '💔 Removed from Liked Songs' : '💚 Liked',
+    );
+
   const seek = (event: MouseEvent<HTMLDivElement>) => {
     if (!state?.track) return;
 
@@ -192,20 +213,41 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
             <Icon name="speaker" /> {state?.device?.name ?? 'no device'}
           </button>
         </div>
-        <button
-          type="button"
-          className="disc"
-          aria-label={state?.isPlaying ? 'Pause' : 'Play'}
-          onClick={() => act(() => (state?.isPlaying ? api.spotify.pause() : api.spotify.play()))}
-        >
-          {track?.artwork ? <img key={track.artwork} src={track.artwork} alt="" /> : <div className="disc-empty" />}
-          <svg className="ring" viewBox="0 0 100 100" aria-hidden="true">
-            <circle className="ring-track" cx="50" cy="50" r="48" />
-            <circle className="ring-fill" cx="50" cy="50" r="48" style={{strokeDasharray: `${ratio * RING} ${RING}`}} />
-          </svg>
-        </button>
+        <div className="player-middle">
+          <button
+            type="button"
+            className="disc"
+            aria-label={state?.isPlaying ? 'Pause' : 'Play'}
+            onClick={() => act(() => (state?.isPlaying ? api.spotify.pause() : api.spotify.play()))}
+          >
+            {track?.artwork ? <img key={track.artwork} src={track.artwork} alt="" /> : <div className="disc-empty" />}
+            <svg className="ring" viewBox="0 0 100 100" aria-hidden="true">
+              <circle className="ring-track" cx="50" cy="50" r="48" />
+              <circle
+                className="ring-fill"
+                cx="50"
+                cy="50"
+                r="48"
+                style={{strokeDasharray: `${ratio * RING} ${RING}`}}
+              />
+            </svg>
+          </button>
+        </div>
         <div className="player-bottom">
-          <div className="player-title">{track?.name ?? (state ? 'Nothing playing' : '…')}</div>
+          <div className="player-title-row">
+            <div className="player-title">{track?.name ?? (state ? 'Nothing playing' : '…')}</div>
+            {track && (
+              <button
+                type="button"
+                className={`heart ${track.saved ? 'on' : ''}`}
+                aria-label={track.saved ? 'Remove from Liked Songs' : 'Add to Liked Songs'}
+                aria-pressed={track.saved}
+                onClick={() => like(track)}
+              >
+                <Icon name="heart" filled={track.saved} />
+              </button>
+            )}
+          </div>
           <div className="player-artist">{track?.artists ?? ''}</div>
           <div className="seek" onClick={seek} role="progressbar" aria-valuenow={Math.round(ratio * 100)}>
             <div className="seek-fill" style={{width: `${ratio * 100}%`}} />

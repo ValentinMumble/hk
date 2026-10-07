@@ -22,10 +22,13 @@ const toLight = ([id, raw]: [string, RawLight]): Light => ({
   color: raw.state.xy ? xyToHex(raw.state.xy) : raw.state.ct ? miredToHex(raw.state.ct) : '#ffe9c4',
 });
 
-const toBridgeState = ({on, color, brightness}: HueState) => ({
+const toBridgeState = ({on, color, brightness, effect, alert, transition}: HueState) => ({
   ...(undefined === on ? {} : {on}),
   ...(undefined === color ? {} : {xy: hexToXy(color)}),
   ...(undefined === brightness ? {} : {bri: Math.round(1 + (Math.min(100, Math.max(0, brightness)) / 100) * 253)}),
+  ...(undefined === effect ? {} : {effect}),
+  ...(undefined === alert ? {} : {alert}),
+  ...(undefined === transition ? {} : {transitiontime: Math.round(Math.min(6553, Math.max(0, transition)) * 10)}),
 });
 
 /** The bridge answers writes with a list of success/error items. Errors only count when nothing succeeded. */

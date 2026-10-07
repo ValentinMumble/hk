@@ -22,10 +22,11 @@ export const createMockDevices = (): Devices => {
     return light;
   };
 
-  const apply = (light: Light, {on, brightness, color}: HueState) => {
+  const apply = (light: Light, {on, brightness, color, effect, alert}: HueState) => {
     if (undefined !== on) light.on = on;
     if (undefined !== brightness) light.brightness = brightness;
     if (undefined !== color && light.hasColor) light.color = color;
+    if (effect || alert) console.log(`[mock] Hue ${light.name} effect=${effect ?? '-'} alert=${alert ?? '-'}`);
   };
 
   const tracks: SpotifyTrack[] = [
@@ -56,7 +57,7 @@ export const createMockDevices = (): Devices => {
     shuffle: false,
     repeat: 'off',
     device: {id: 'd1', name: 'Volumio', volume: 40},
-    track: {...tracks[0], durationMs: 180_000},
+    track: {...tracks[0], durationMs: 180_000, saved: false},
     contextUri: null,
   };
 
@@ -78,12 +79,21 @@ export const createMockDevices = (): Devices => {
 
   const skip = (direction: 1 | -1) => {
     trackIndex = (trackIndex + direction + tracks.length) % tracks.length;
-    playback.track = {...tracks[trackIndex], durationMs: 180_000};
+    playback.track = {...tracks[trackIndex], durationMs: 180_000, saved: false};
     playback.progressMs = 0;
     playback.readAt = Date.now();
   };
 
   return {
+    lyrics: {
+      lookup: async (artist, title) => ({
+        title,
+        artist,
+        url: 'https://genius.com/',
+        lyrics:
+          '[Verse 1]\nThis is a mock song\nWith mock lyrics that go on\n\n[Chorus]\nLa la la, mock mock mock\nLa la la, around the clock',
+      }),
+    },
     spotify: {
       connected: () => connected,
       authorizeUrl: (redirectUri, state) => `${redirectUri}?code=mock&state=${encodeURIComponent(state)}`,
@@ -100,7 +110,7 @@ export const createMockDevices = (): Devices => {
           const found = tracks.find(track => track.uri === uri);
           if (found) {
             trackIndex = tracks.indexOf(found);
-            playback.track = {...found, durationMs: 180_000};
+            playback.track = {...found, durationMs: 180_000, saved: false};
             playback.progressMs = 0;
           }
         }
@@ -130,6 +140,9 @@ export const createMockDevices = (): Devices => {
         const device = spotifyDevices.find(candidate => candidate.id === deviceId);
         if (device) playback.device = {id: device.id, name: device.name, volume: device.volume};
         playback.isPlaying = play;
+      },
+      like: async (_trackId, saved) => {
+        if (playback.track) playback.track.saved = saved;
       },
       devices: async () => spotifyDevices.map(device => ({...device, isActive: device.id === playback.device?.id})),
       playlists: async () => playlists,

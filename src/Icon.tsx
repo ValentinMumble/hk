@@ -6,6 +6,10 @@ const PATHS = {
   mute: 'M11 5 6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6',
   bulb: 'M9 18h6M10 21h4M8.5 14.5A6 6 0 1 1 15.5 14.5c-.6.6-1 1.5-1 2.5h-5c0-1-.4-1.9-1-2.5z',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
+  heart:
+    'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z',
+  lines: 'M17 10H3M21 6H3M21 14H3M17 18H3',
+  note: 'M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
   play: 'M6 4l14 8-14 8V4z',
   pause: 'M7 4h3v16H7zM14 4h3v16h-3z',
   previous: 'M19 20L9 12l10-8v16zM5 19V5',
@@ -24,12 +28,12 @@ const PATHS = {
 
 export type IconName = keyof typeof PATHS;
 
-export const Icon = ({name}: {name: IconName}) => (
+export const Icon = ({name, filled = false}: {name: IconName; filled?: boolean}) => (
   <svg
     width="1em"
     height="1em"
     viewBox="0 0 24 24"
-    fill="none"
+    fill={filled ? 'currentColor' : 'none'}
     stroke="currentColor"
     strokeWidth={2}
     strokeLinecap="round"
