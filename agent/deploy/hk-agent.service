@@ -1,17 +1,15 @@
-# systemd unit for a Raspberry Pi. Install:
-#   sudo cp deploy/hk-agent.service /etc/systemd/system/
-#   sudo systemctl enable --now hk-agent
-#   journalctl -u hk-agent -f
+# systemd unit template, rendered and installed by deploy/install-pi.sh
+# (__USER__, __HOME__ and __NODE__ are filled in for the Pi).
 [Unit]
 Description=HK agent (Harman Kardon amp + Hue bridge)
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-User=pi
-WorkingDirectory=/home/pi/hk/agent
-EnvironmentFile=/home/pi/hk/agent/.env
-ExecStart=/usr/bin/node dist/index.js
+User=__USER__
+WorkingDirectory=__HOME__/hk-agent
+EnvironmentFile=__HOME__/hk-agent/.env
+ExecStart=__NODE__ dist/index.js
 Restart=always
 RestartSec=5
 

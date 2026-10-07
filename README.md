@@ -19,10 +19,10 @@ process has to run at home. Everything else is static.
 
 ## Layout
 
-| Path     | What                                                                                       |
-| -------- | ------------------------------------------------------------------------------------------ |
-| `src/`   | The web app: Vite + React, no UI library. Deployed to Vercel.                              |
-| `agent/` | The home service: Node 20+, zero runtime dependencies. Ignored by Vercel (`.vercelignore`) |
+| Path     | What                                                                                          |
+| -------- | --------------------------------------------------------------------------------------------- |
+| `src/`   | The web app: Vite + React, no UI library. Deployed to Vercel.                                 |
+| `agent/` | The home service: Node 14.13+, zero runtime dependencies. Ignored by Vercel (`.vercelignore`) |
 
 ## Agent (runs at home)
 
@@ -48,20 +48,62 @@ Routes, all behind `Authorization: Bearer <AGENT_TOKEN>`:
 | POST   | `/hue/lights/<id>`        | same                                              | One light                                                                                     |
 | POST   | `/hue/lights/<id>/toggle` |                                                   | Flip one light, returns `{on}`                                                                |
 
-Keep it running: `agent/deploy/hk-agent.service` (Raspberry Pi, systemd) or `agent/deploy/dev.vumble.hk-agent.plist`
-(Mac, launchd). Tests: `npm test` (a fake amp checks the TCP protocol, no hardware needed).
+Tests: `npm test` (a fake amp checks the TCP protocol, no hardware needed).
+
+### On the Raspberry Pi, in one go
+
+The agent lives on the Volumio Pi (`volumio.local`, 192.168.1.13) as the systemd service `hk-agent`, started at boot
+and restarted after a crash. Install or update it from the Mac:
+
+```bash
+agent/deploy/install-pi.sh volumio@volumio.local
+```
+
+Safe to re-run after any change. It builds here, copies `dist/` and `.env` to `~/hk-agent`, picks a Node
+(`agent/deploy/pick-node.sh`: a private one under `~/hk-agent/node` when an official build runs on the Pi's OS, otherwise
+the system Node; on Volumio 3 that is Volumio's own Node 14, since Raspbian Buster cannot run any Node 18+ build and 14 is
+enough), installs the systemd unit from `agent/deploy/hk-agent.service` (asks the Pi's sudo password once) and checks the
+agent answers.
+
+On the Pi: `systemctl status hk-agent`, `journalctl -u hk-agent -f`.
+
+#### After a fresh flash of the Pi
+
+1. Flash Volumio, boot it, finish its setup wizard.
+2. Put your SSH key on it once: `ssh-copy-id volumio@volumio.local`.
+3. Make sure `agent/.env` is on the Mac (it is git-ignored; keep a copy in papyrus next to the other `.env` files).
+   It holds the amp IP, the Hue key, the token and, optionally, `TS_AUTHKEY`.
+4. Run `agent/deploy/install-pi.sh volumio@volumio.local`.
+
+With `TS_AUTHKEY` set, step 4 also installs Tailscale and opens the Funnel, so nothing else is needed.
+
+On a Mac, `agent/deploy/dev.vumble.hk-agent.plist` is a launchd equivalent of the service.
 
 ### Reaching it from outside
 
-The web app is served over HTTPS, so the agent needs an HTTPS URL too. Easiest: [Tailscale Funnel](https://tailscale.com/kb/1223/funnel)
-on the machine running the agent:
+The web app is served over HTTPS, so the agent needs an HTTPS URL too (a page on `https://` cannot call
+`http://192.168.1.13:8787`, browsers block it as mixed content). Easiest: [Tailscale Funnel](https://tailscale.com/kb/1223/funnel)
+on the Pi, which gives a public `https://volumio.<tailnet>.ts.net` URL with a real certificate and no port forwarding.
+The token is the only protection, keep it long.
+
+By hand, on the Pi:
 
 ```bash
-tailscale funnel --bg 8787
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up                  # prints a login URL, open it once
+sudo tailscale funnel --bg 8787    # the first time it prints a link to enable Funnel on the tailnet
+tailscale funnel status            # shows the public URL
 ```
 
-That gives a public `https://<machine>.<tailnet>.ts.net` URL, with a real certificate and no port forwarding. The token is
-the only protection, keep it long. Any other tunnel works the same way (Cloudflare Tunnel, ngrok), the app only needs a URL.
+In one go: create a reusable auth key in the Tailscale admin console (Settings → Keys), add it to `agent/.env` as
+`TS_AUTHKEY=tskey-auth-…` and run `agent/deploy/install-pi.sh`. Enabling Funnel on the tailnet is a one-time setting
+that survives reinstalls. After a reflash, remove the old `volumio` machine in the admin console first,
+otherwise the new one is named `volumio-1` and the URL changes.
+
+Then enter the Funnel URL and the token in the app, or open
+`https://hk.vumble.dev/#agent=https://volumio.<tailnet>.ts.net&token=<token>` on the phone.
+
+Any other tunnel works the same way (Cloudflare Tunnel, ngrok), the app only needs a URL.
 
 ## Web app
 
@@ -76,12 +118,17 @@ On first open the app asks for the agent URL and the token and keeps them in `lo
 typing, open `https://hk.vumble.dev/#agent=https://<agent-url>&token=<token>`: the values are stored and removed from
 the URL. The ⋯ button in the footer reopens that screen.
 
-For local development point it at `http://localhost:8787` with the token `mock` while `npm run mock` runs in `agent/`.
+For local development the dev server runs on plain HTTP, so it can talk to an agent on the LAN directly:
+
+- fake devices: `npm run mock` in `agent/`, then open `http://localhost:5181/#agent=http://localhost:8787&token=mock`
+- the real Pi: `http://localhost:5181/#agent=http://192.168.1.13:8787&token=<token from agent/.env>`
 
 ### Deploy
 
-Import the GitHub repo in Vercel (framework preset: Vite, root directory: `/`), attach `hk.vumble.dev`. There is no
-server-side configuration: no environment variables on Vercel.
+The Vercel project `hk` is Git-connected to `ValentinMumble/hk`: every push to `main` deploys to
+`https://hk.vumble.dev`. There is no server-side configuration and no environment variable on Vercel. To redo it from
+scratch: import the repo in Vercel (framework preset: Vite, root directory `/`) and attach the domain, the wildcard
+`*.vumble.dev` already points to Vercel.
 
 ## Hue notes
 
