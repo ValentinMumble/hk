@@ -45,8 +45,8 @@ export const createMockDevices = (): Devices => {
     {
       id: 't2',
       uri: 'spotify:track:t2',
-      name: 'Second Take',
-      artists: 'Stub & Fake',
+      name: 'A Very Long Second Take That Keeps Going On (feat. Somebody Famous) - 2011 Remastered Version',
+      artists: 'Stub & Fake and the Placeholder Philharmonic Orchestra',
       album: 'Placeholder',
       artwork: null,
     },

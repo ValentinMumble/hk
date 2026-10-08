@@ -2,6 +2,7 @@ import {useCallback, useEffect, useRef, useState, type MouseEvent} from 'react';
 import type {Api, PlaybackState, SpotifyDevice} from './api';
 import {dominantColor} from './artwork';
 import {Icon} from './Icon';
+import {Marquee} from './Marquee';
 import {attempt} from './toast';
 
 const POLL_MS = 2000;
@@ -17,6 +18,32 @@ const formatTime = (ms: number) => {
   const total = Math.max(0, Math.floor(ms / 1000));
 
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+};
+
+/** A trailing segment is a version note only when it reads like one; otherwise it is part of the title. */
+const VERSION_NOTE =
+  /\b(remaster(ed)?|live|edit|version|mix|remix|mono|stereo|demo|acoustic|instrumental|radio|single|bonus|deluxe|anniversary|re-?record(ed|ing)?|feat\.?|featuring|from|session|take|alternate|extended|original|sped up|slowed|cover|karaoke|explicit|clean|\d{4})\b/i;
+
+/**
+ * Split "Song (feat. X) - 2011 Remaster" into the title and its version notes, shown smaller. Only trailing
+ * groups that look like version notes are taken: "Hot - Blooded", "Song (Part II)" and "(Don't Fear) The Reaper"
+ * keep their text.
+ */
+const splitTitle = (name: string): {title: string; extras: string[]} => {
+  let title = name.trim();
+  const extras: string[] = [];
+
+  for (;;) {
+    const match = title.match(/^(.+?)\s+(?:\(([^()]*)\)|\[([^\]]*)\])$/) ?? title.match(/^(.+)\s+-\s+(.+)$/);
+    const extra = match ? (match[2] ?? match[3]).trim() : '';
+
+    if (!match || !VERSION_NOTE.test(extra)) break;
+
+    extras.unshift(extra);
+    title = match[1].trim();
+  }
+
+  return {title, extras};
 };
 
 /** Redirect URI registered in the Spotify dashboard: the app's own origin. */
@@ -312,15 +339,18 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
           </button>
         </div>
         <div className="player-bottom">
-          <div className="player-title">
-            {track?.name ?? (state ? 'Nothing playing' : '…')}
+          <Marquee className="player-title">
+            {track ? splitTitle(track.name).title : state ? 'Nothing playing' : '…'}
+            {track && splitTitle(track.name).extras.length > 0 && (
+              <span className="title-extra">{splitTitle(track.name).extras.join(' · ')}</span>
+            )}
             {track?.saved && (
               <span className="liked" title="In Liked Songs">
                 <Icon name="heart" filled />
               </span>
             )}
-          </div>
-          <div className="player-artist">{track?.artists ?? ''}</div>
+          </Marquee>
+          <Marquee className="player-artist">{track?.artists ?? ''}</Marquee>
           <div className="seek" onClick={seek} role="progressbar" aria-valuenow={Math.round(ratio * 100)}>
             <div className="seek-fill" style={{width: `${ratio * 100}%`}} />
           </div>

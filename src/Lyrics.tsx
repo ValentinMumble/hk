@@ -1,4 +1,5 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
+import {Marquee} from './Marquee';
 import type {Api, LyricsResult} from './api';
 
 const POLL_MS = 10_000;
@@ -48,15 +49,13 @@ export const Lyrics = ({api}: {api: Api}) => {
       </header>
       {result && (
         <div className="track">
-          <div className="track-name">{result.title}</div>
-          <div className="track-artist">{result.artist}</div>
+          <Marquee className="track-name">{result.title}</Marquee>
+          <Marquee className="track-artist">{result.artist}</Marquee>
         </div>
       )}
       {isLoading && !result ? (
         <div className="loader" role="status" aria-label="Finding lyrics">
-          <span />
-          <span />
-          <span />
+          <span className="spinner" />
         </div>
       ) : error && !result ? (
         <p className="status">😶 {error}</p>
