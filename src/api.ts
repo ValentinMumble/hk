@@ -5,6 +5,7 @@ export type AgentInfo = {
   mock: boolean;
   sources: string[];
   version?: string;
+  build?: {sha: string; date: string} | null;
   uptime?: number;
   spotify: {configured: boolean; connected: boolean};
   lyrics?: {configured: boolean};
@@ -94,6 +95,7 @@ export const createApi = ({agentUrl, token}: Settings) => {
     setLight: (id: string, state: HueState) => call('POST', `/hue/lights/${id}`, state),
     toggleLight: (id: string) => call<{on: boolean}>('POST', `/hue/lights/${id}/toggle`),
     lyrics: () => call<LyricsResult>('GET', '/lyrics'),
+    update: () => call<{sha: string; date: string}>('POST', '/update', {}),
     spotify: {
       authUrl: (redirect: string, state: string) =>
         call<{url: string}>('GET', `/spotify/auth-url?${new URLSearchParams({redirect, state})}`),
@@ -110,6 +112,7 @@ export const createApi = ({agentUrl, token}: Settings) => {
       transfer: (deviceId: string, play: boolean) => call('POST', '/spotify/transfer', {deviceId, play}),
       like: (trackId: string, saved: boolean) => call('POST', '/spotify/like', {trackId, saved}),
       queue: () => call<SpotifyTrack[]>('GET', '/spotify/queue'),
+      radio: (trackId: string) => call<{queued: number}>('POST', '/spotify/radio', {trackId}),
       addToQueue: (uri: string) => call('POST', '/spotify/queue', {uri}),
       logout: () => call('POST', '/spotify/logout', {}),
       devices: () => call<SpotifyDevice[]>('GET', '/spotify/devices'),

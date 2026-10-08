@@ -242,6 +242,25 @@ button:active {
   opacity: 0.3;
 }
 
+.light {
+  -webkit-touch-callout: none;
+}
+
+.light.targeted {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.artist-button {
+  display: block;
+  width: 100%;
+  color: inherit;
+}
+
+.artist-button:disabled {
+  cursor: default;
+}
+
 .swatches {
   display: flex;
   justify-content: space-between;

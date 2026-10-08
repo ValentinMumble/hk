@@ -5,6 +5,7 @@ import {attempt} from './toast';
 
 const COLORS = ['#ffffff', '#ffaa71', '#01a7c2', '#57b133', '#b13333', '#ff96ca'];
 const DEBOUNCE_MS = 300;
+const LONG_PRESS_MS = 450;
 
 /** Icons by light name, like the old app did; anything else is a plain bulb. */
 const ICONS: Record<string, IconName> = {
@@ -62,6 +63,10 @@ export const Lights = ({api}: {api: Api}) => {
   const [brightness, setBrightness] = useState(100);
   const [activeColor, setActiveColor] = useState<string | null>(null);
   const [wheelPoint, setWheelPoint] = useState<{x: number; y: number} | null>(null);
+  /** A lamp picked with a long press: colours and brightness then go to it alone. */
+  const [target, setTarget] = useState<Light | null>(null);
+  const pressTimer = useRef<number | undefined>(undefined);
+  const longPressed = useRef(false);
   const isDragging = useRef(false);
 
   const refresh = useCallback(() => attempt(async () => setLights(await api.lights())), [api]);
@@ -72,10 +77,17 @@ export const Lights = ({api}: {api: Api}) => {
 
   const setAccent = (color: string) => document.documentElement.style.setProperty('--accent', color);
 
-  const setColor = async (color: string, label = '🌞 Lights on') => {
+  const setColor = async (color: string, label = target ? `🌞 ${target.name}` : '🌞 Lights on') => {
     setActiveColor(color);
     setAccent(color);
-    await attempt(() => api.allLights({on: true, color, brightness: 100, effect: 'none'}), label, color);
+    await attempt(
+      () =>
+        target
+          ? api.setLight(target.id, {on: true, color, brightness: 100})
+          : api.allLights({on: true, color, brightness: 100, effect: 'none'}),
+      label,
+      color,
+    );
     setBrightness(100);
     refresh();
   };
@@ -86,14 +98,30 @@ export const Lights = ({api}: {api: Api}) => {
     refresh();
   };
 
+  const startPress = (light: Light) => {
+    longPressed.current = false;
+    window.clearTimeout(pressTimer.current);
+    pressTimer.current = window.setTimeout(() => {
+      longPressed.current = true;
+      setTarget(current => (current?.id === light.id ? null : light));
+    }, LONG_PRESS_MS);
+  };
+
+  const endPress = () => window.clearTimeout(pressTimer.current);
+
   const toggle = (light: Light) =>
     attempt(async () => {
+      if (longPressed.current) return;
+
       const {on} = await api.toggleLight(light.id);
       setLights(current => current.map(item => (item.id === light.id ? {...item, on} : item)));
     });
 
   const commitBrightness = useDebounced((value: number) => {
-    attempt(() => api.allLights({brightness: value}), `🔆 ${value}%`).then(refresh);
+    attempt(
+      () => (target ? api.setLight(target.id, {brightness: value}) : api.allLights({brightness: value})),
+      `🔆 ${value}%`,
+    ).then(refresh);
   }, DEBOUNCE_MS);
 
   const commitPicked = useDebounced((value: string) => setColor(value, '🎨 Lights on'), DEBOUNCE_MS);
@@ -119,9 +147,15 @@ export const Lights = ({api}: {api: Api}) => {
     <section className="panel compact">
       <header className="panel-header">
         <h2>Lights</h2>
-        <button type="button" className="status" onClick={refresh}>
-          {onCount ? `${onCount} on` : 'all off'}
-        </button>
+        {target ? (
+          <button type="button" className="chip on" onClick={() => setTarget(null)}>
+            {target.name} ✕
+          </button>
+        ) : (
+          <button type="button" className="status" onClick={refresh}>
+            {onCount ? `${onCount} on` : 'all off'}
+          </button>
+        )}
       </header>
       <div className="panel-body">
         <div className="lights">
@@ -129,11 +163,16 @@ export const Lights = ({api}: {api: Api}) => {
             <button
               key={light.id}
               type="button"
-              className={`light ${light.on ? 'on' : ''} ${light.reachable ? '' : 'dim'}`}
+              className={`light ${light.on ? 'on' : ''} ${light.reachable ? '' : 'dim'} ${target?.id === light.id ? 'targeted' : ''}`}
               style={lightStyle(light)}
               aria-pressed={light.on}
-              aria-label={light.name}
+              aria-label={`${light.name} (hold to colour it alone)`}
               title={light.name}
+              onPointerDown={() => startPress(light)}
+              onPointerUp={endPress}
+              onPointerLeave={endPress}
+              onPointerCancel={endPress}
+              onContextMenu={event => event.preventDefault()}
               onClick={() => toggle(light)}
             >
               <Icon name={lightIcon(light.name)} />

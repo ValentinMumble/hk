@@ -170,12 +170,25 @@ Setup, once:
    `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`, then `agent/deploy/install-pi.sh`.
 2. Tap "Connect Spotify" in the app and approve. After a reflash of the Pi, tap it again.
 
+Gestures on the Spotify tab: one tap on the artwork plays or pauses, two taps like the track (a heart after the title
+shows it is liked), a tap on the artist name starts a song radio (the current track followed by songs like it; Spotify
+closed that endpoint to apps created after November 2024, the agent says so if it is refused).
+
 `SPOTIFY_DEFAULT_DEVICE` (default `Volumio`) is the Spotify Connect device the agent wakes up when a command fails
 because nothing is playing anywhere.
 
 Routes (behind the token): `GET /spotify/state`, `devices`, `playlists`, `search?q=`, `auth-url?redirect=&state=`;
 `POST /spotify/play {uri?|contextUri?}`, `pause`, `next`, `previous`, `seek {positionMs}`, `volume {percent}`,
 `shuffle {state}`, `repeat {state}`, `transfer {deviceId, play}`, `authorize {code, redirectUri}`, `logout`.
+
+## Updating the agent without the Mac
+
+Every push to `main` that touches `agent/` runs `.github/workflows/agent-release.yml`: it builds and tests the agent and
+publishes `agent-dist.tar.gz` as the GitHub release tagged `latest`. On the Pi, `POST /update` (the "fetch latest build"
+button in the app's settings) downloads that archive, swaps `dist/` and exits; systemd restarts the agent on the new
+build, and `GET /` then reports its `build` (short commit and date). The repo is private, so the Pi needs
+`GITHUB_TOKEN` in `agent/.env`: a fine-grained token with read access to this repository's contents. Without it the
+button fails with a 404 from GitHub. The previous build is kept as `dist.previous` on the Pi.
 
 ## Lyrics
 
@@ -191,10 +204,9 @@ per track on the agent.
 - Find the bridge IP: `curl https://discovery.meethue.com/`.
 - Colours are sent as CIE `xy` (Wide RGB D65 matrix from the Hue docs); lights without colour just get `on` and brightness.
   The agent also reports each light's current colour (from `xy` or the colour temperature) for the tiles.
-- Extras in the Hue tab: moods (a palette spread over the colour lights, one colour each), Party (random colour per lamp),
-  Music (the current album colour), a colour loop (`effect: colorloop`), Blink (`alert: select`), Fade out
-  (`on: false` with a 10 minute `transition`) and a free colour picker. The `/hue/all` and `/hue/lights/<id>` bodies
-  accept `effect`, `alert` and `transition` (seconds) besides `on`, `color` and `brightness`.
+- Hue tab: tap a lamp to toggle it, hold it to colour that lamp alone (the wheel, swatches and brightness then apply to
+  it until its name is tapped in the header). The `/hue/all` and `/hue/lights/<id>` bodies also accept `effect`, `alert`
+  and `transition` (seconds) besides `on`, `color` and `brightness`.
 
 ## HK notes
 

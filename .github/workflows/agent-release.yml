@@ -1,0 +1,38 @@
+# Builds the agent on every push to main and publishes it as the release tagged "latest",
+# which the agent on the Pi downloads when asked to update itself (POST /update).
+name: agent release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'agent/**'
+      - '.github/workflows/agent-release.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+        working-directory: agent
+      - run: npm test
+        working-directory: agent
+      - run: npm run build
+        working-directory: agent
+      - name: Stamp the build
+        run: |
+          printf '{"sha":"%s","date":"%s"}\n' "${GITHUB_SHA::7}" "$(date -u +%Y-%m-%dT%H:%MZ)" > agent/dist/build.json
+          tar -czf agent-dist.tar.gz -C agent dist package.json
+      - name: Publish as the "latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest agent-dist.tar.gz --title "agent ${GITHUB_SHA::7}" --notes "Built from ${GITHUB_SHA} on $(date -u +%Y-%m-%d)"

@@ -159,6 +159,12 @@ export const createMockDevices = (): Devices => {
       addToQueue: async uri => {
         console.log(`[mock] Spotify queue ${uri}`);
       },
+      radio: async trackId => {
+        console.log(`[mock] Spotify radio from ${trackId}`);
+        playback.isPlaying = true;
+
+        return 49;
+      },
       devices: async () => spotifyDevices.map(device => ({...device, isActive: device.id === playback.device?.id})),
       playlists: async () => playlists,
       search: async query =>

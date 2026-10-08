@@ -350,7 +350,17 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
               </span>
             )}
           </Marquee>
-          <Marquee className="player-artist">{track?.artists ?? ''}</Marquee>
+          <button
+            type="button"
+            className="artist-button"
+            disabled={!track}
+            title="Play songs like this one"
+            onClick={() =>
+              track && act(() => api.spotify.radio(track.id), `📻 Songs like ${splitTitle(track.name).title}`)
+            }
+          >
+            <Marquee className="player-artist">{track?.artists ?? ''}</Marquee>
+          </button>
           <div className="seek" onClick={seek} role="progressbar" aria-valuenow={Math.round(ratio * 100)}>
             <div className="seek-fill" style={{width: `${ratio * 100}%`}} />
           </div>

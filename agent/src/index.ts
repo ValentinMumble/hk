@@ -6,6 +6,7 @@ import {createHue} from './hue.js';
 import {createLyrics} from './lyrics.js';
 import {createMockDevices} from './mock.js';
 import {createSpotify} from './spotify.js';
+import {readBuild, update} from './update.js';
 import type {Devices, HueState, PlaybackState} from './types.js';
 
 const {
@@ -20,12 +21,16 @@ const {
   SPOTIFY_DEFAULT_DEVICE = '',
   SPOTIFY_TOKENS_FILE = 'spotify.json',
   GENIUS_TOKEN = '',
+  GITHUB_REPO = 'ValentinMumble/hk',
+  GITHUB_TOKEN = '',
   MOCK = '',
 } = process.env;
 
 const isMock = '1' === MOCK || 'true' === MOCK;
 const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {version: string})
   .version;
+const APP_DIR = new URL('..', import.meta.url).pathname;
+const BUILD = readBuild(new URL('.', import.meta.url).pathname);
 
 if (!AGENT_TOKEN) {
   console.error('AGENT_TOKEN is required');
@@ -206,6 +211,8 @@ const spotifyRoute = async (
       }
       case 'queue':
         return done(spotify.addToQueue(text((await readBody()).uri, 'uri')));
+      case 'radio':
+        return {body: {queued: await spotify.radio(text((await readBody()).trackId, 'trackId'))}};
       case 'like': {
         const body = await readBody();
 
@@ -232,6 +239,7 @@ const route = async (
         ok: true,
         mock: isMock,
         version: VERSION,
+        build: BUILD,
         uptime: Math.round(process.uptime()),
         sources,
         spotify: {configured: null !== devices.spotify, connected: devices.spotify?.connected() ?? false},
@@ -263,6 +271,16 @@ const route = async (
   }
 
   if ('spotify' === root && segments.length <= 2) return spotifyRoute(method, second, query, readBody);
+
+  if ('update' === root && 'POST' === method && 1 === segments.length) {
+    if (isMock) throw new HttpError(400, 'Not in mock mode');
+
+    const build = await update({repo: GITHUB_REPO, token: GITHUB_TOKEN || undefined, appDir: APP_DIR});
+    console.log(`updated to ${build.sha} (${build.date}), restarting`);
+    setTimeout(() => process.exit(0), 500);
+
+    return {body: build};
+  }
 
   if ('hk' === root && 'POST' === method && 2 === segments.length) {
     if (!(second in HK_COMMANDS)) throw new HttpError(404, `Unknown HK command: ${second}`);

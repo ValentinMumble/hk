@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'react';
 import {createApi, type AgentInfo} from './api';
+import {attempt} from './toast';
 import type {Settings} from './settings';
 
 type Line = {label: string; value: string; ok: boolean | null};
@@ -15,6 +16,8 @@ const formatUptime = (seconds: number) => {
 /** What works right now, checked against the agent when the settings screen opens. */
 export const Status = ({settings}: {settings: Settings}) => {
   const [lines, setLines] = useState<Line[]>([{label: 'Agent', value: 'checking…', ok: null}]);
+  const [build, setBuild] = useState<AgentInfo['build']>(null);
+  const [updating, setUpdating] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,10 +35,12 @@ export const Status = ({settings}: {settings: Settings}) => {
         return;
       }
 
+      if (!cancelled) setBuild(info.build ?? null);
+
       const next: Line[] = [
         {
           label: 'Agent',
-          value: `v${info.version ?? '?'}, up ${formatUptime(info.uptime ?? 0)}${info.mock ? ', mock' : ''}`,
+          value: `${info.build ? `${info.build.sha} (${info.build.date.slice(0, 10)})` : `v${info.version ?? '?'}`}, up ${formatUptime(info.uptime ?? 0)}${info.mock ? ', mock' : ''}`,
           ok: true,
         },
         {label: 'Address', value: settings.agentUrl.replace(/^https?:\/\//, ''), ok: true},
@@ -83,6 +88,33 @@ export const Status = ({settings}: {settings: Settings}) => {
     };
   }, [settings]);
 
+  /** Ask the agent to fetch the latest build, then wait for it to come back with a different one. */
+  const updateAgent = () =>
+    attempt(async () => {
+      const api = createApi(settings);
+      setUpdating('downloading…');
+      const next = await api.update();
+      setUpdating(`restarting into ${next.sha}…`);
+
+      for (let attempt = 0; attempt < 30; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        try {
+          const info = await api.info();
+
+          if (info.build?.sha === next.sha) {
+            setBuild(info.build);
+
+            return;
+          }
+        } catch {
+          // still restarting
+        }
+      }
+
+      throw new Error('The agent did not come back, check it on the Pi');
+    }, '✅ Agent updated').finally(() => setUpdating(null));
+
   return (
     <dl className="status-list">
       {lines.map(line => (
@@ -91,6 +123,14 @@ export const Status = ({settings}: {settings: Settings}) => {
           <dd>{line.value}</dd>
         </div>
       ))}
+      <div className="status-line">
+        <dt>Update</dt>
+        <dd>
+          <button type="button" className="status" disabled={null !== updating} onClick={updateAgent}>
+            {updating ?? (build ? 'fetch latest build' : 'fetch latest build (local build now)')}
+          </button>
+        </dd>
+      </div>
     </dl>
   );
 };

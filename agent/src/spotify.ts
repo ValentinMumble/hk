@@ -355,6 +355,24 @@ export const createSpotify = ({clientId, clientSecret, defaultDevice, tokensFile
     addToQueue: async uri => {
       await api('POST', '/me/player/queue', {query: {uri}});
     },
+    radio: async trackId => {
+      let reply: {tracks?: RawTrack[]};
+
+      try {
+        reply = (await api('GET', '/recommendations', {query: {seed_tracks: trackId, limit: 49}})) as typeof reply;
+      } catch (error) {
+        // Spotify closed this endpoint to apps created after November 2024
+        if (error instanceof SpotifyError && (404 === error.status || 403 === error.status)) {
+          throw new SpotifyError(error.status, 'Song radio is not available to this Spotify app');
+        }
+        throw error;
+      }
+
+      const uris = [`spotify:track:${trackId}`, ...(reply.tracks ?? []).map(track => track.uri)];
+      await withDevice(() => api('PUT', '/me/player/play', {body: {uris}}));
+
+      return uris.length - 1;
+    },
     search: async query => {
       const reply = (await api('GET', '/search', {query: {q: query, type: 'track', limit: 10}})) as {
         tracks?: {items?: RawTrack[]};
