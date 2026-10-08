@@ -1,7 +1,6 @@
 import {execFile} from 'node:child_process';
 import {mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync} from 'node:fs';
 import {request as httpsRequest} from 'node:https';
-import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 
 /**
@@ -82,20 +81,36 @@ export const update = async ({repo, token, appDir}: Config): Promise<Build> => {
 
   if (download.status >= 400) throw new Error(`GitHub: asset download failed (HTTP ${download.status})`);
 
-  const work = mkdtempSync(join(tmpdir(), 'hk-agent-'));
-  const archive = join(work, 'agent.tar.gz');
-  writeFileSync(archive, download.body);
-  await run('tar', ['-xzf', archive, '-C', work]);
+  // Unpack inside the app folder: /tmp can be another filesystem, and renames must stay on one.
+  const work = mkdtempSync(join(appDir, '.update-'));
 
-  const build = readBuild(join(work, 'dist'));
+  try {
+    const archive = join(work, 'agent.tar.gz');
+    writeFileSync(archive, download.body);
+    await run('tar', ['-xzf', archive, '-C', work]);
 
-  if (!build) throw new Error('The downloaded build has no build.json');
+    const build = readBuild(join(work, 'dist'));
 
-  const previous = join(appDir, 'dist.previous');
-  rmSync(previous, {recursive: true, force: true});
-  renameSync(join(appDir, 'dist'), previous);
-  renameSync(join(work, 'dist'), join(appDir, 'dist'));
-  rmSync(work, {recursive: true, force: true});
+    if (!build) throw new Error('The downloaded build has no build.json');
 
-  return build;
+    // Swap so that dist/ is never missing: stage next to it, then move the old one aside, then the new one in.
+    const current = join(appDir, 'dist');
+    const next = join(appDir, 'dist.next');
+    const previous = join(appDir, 'dist.previous');
+    rmSync(next, {recursive: true, force: true});
+    rmSync(previous, {recursive: true, force: true});
+    renameSync(join(work, 'dist'), next);
+    renameSync(current, previous);
+
+    try {
+      renameSync(next, current);
+    } catch (error) {
+      renameSync(previous, current);
+      throw error;
+    }
+
+    return build;
+  } finally {
+    rmSync(work, {recursive: true, force: true});
+  }
 };
