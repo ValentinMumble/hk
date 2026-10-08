@@ -1,14 +1,13 @@
 import {useCallback, useEffect, useRef, useState, type MouseEvent} from 'react';
-import type {Api, PlaybackState, RepeatState, SpotifyDevice, SpotifyPlaylist} from './api';
+import type {Api, PlaybackState, SpotifyDevice} from './api';
 import {dominantColor} from './artwork';
 import {Icon} from './Icon';
-import {Queue} from './Queue';
-import {Search} from './Search';
 import {attempt} from './toast';
 
 const POLL_MS = 2000;
 const AFTER_ACTION_MS = 400;
 const VOLUME_STEP = 5;
+const DOUBLE_TAP_MS = 280;
 const STATE_KEY = 'hk.spotify.state';
 const RING = 2 * Math.PI * 48;
 
@@ -19,9 +18,6 @@ const formatTime = (ms: number) => {
 
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 };
-
-const nextRepeat = (state: RepeatState): RepeatState =>
-  'off' === state ? 'context' : 'context' === state ? 'track' : 'off';
 
 /** Redirect URI registered in the Spotify dashboard: the app's own origin. */
 const redirectUri = () => `${window.location.origin}/`;
@@ -50,11 +46,11 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState<number | null>(null);
   const [devices, setDevices] = useState<SpotifyDevice[]>([]);
-  const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
-  const [sheet, setSheet] = useState<'search' | 'queue' | null>(null);
   const [isLoggingIn, setLoggingIn] = useState(false);
   const artworkRef = useRef<string | null>(null);
   const volumeTimer = useRef<number | undefined>(undefined);
+  const tapTimer = useRef<number | undefined>(undefined);
+  const [isPopping, setPopping] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -179,6 +175,27 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
       track.saved ? '💔 Removed from Liked Songs' : '💚 Liked',
     );
 
+  /** One tap on the disc plays or pauses, two taps like the track. */
+  const tapDisc = () => {
+    if (tapTimer.current) {
+      window.clearTimeout(tapTimer.current);
+      tapTimer.current = undefined;
+
+      if (track) {
+        setPopping(true);
+        window.setTimeout(() => setPopping(false), 600);
+        like(track);
+      }
+
+      return;
+    }
+
+    tapTimer.current = window.setTimeout(() => {
+      tapTimer.current = undefined;
+      act(() => (state?.isPlaying ? api.spotify.pause() : api.spotify.play()));
+    }, DOUBLE_TAP_MS);
+  };
+
   const seek = (event: MouseEvent<HTMLDivElement>) => {
     if (!state?.track) return;
 
@@ -206,19 +223,11 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
       .catch(() => undefined);
   }, [api]);
 
-  const loadPlaylists = useCallback(() => {
-    api.spotify
-      .playlists()
-      .then(setPlaylists)
-      .catch(() => undefined);
-  }, [api]);
-
   useEffect(() => {
     if (!connected) return;
 
     loadDevices();
-    loadPlaylists();
-  }, [connected, loadDevices, loadPlaylists]);
+  }, [connected, loadDevices]);
 
   const transferTo = (deviceId: string) => {
     const device = devices.find(candidate => candidate.id === deviceId);
@@ -226,12 +235,6 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
     if (!device || device.id === state?.device?.id) return;
 
     act(() => api.spotify.transfer(device.id, state?.isPlaying ?? false), `🔈 ${device.name}`);
-  };
-
-  const playPlaylist = (uri: string) => {
-    const playlist = playlists.find(candidate => candidate.uri === uri);
-
-    if (playlist) act(() => api.spotify.play({contextUri: playlist.uri}), `▶️ ${playlist.name}`);
   };
 
   /** The active device is always listed, even before the device list has loaded. */
@@ -287,10 +290,15 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
           <button
             type="button"
             className="disc"
-            aria-label={state?.isPlaying ? 'Pause' : 'Play'}
-            onClick={() => act(() => (state?.isPlaying ? api.spotify.pause() : api.spotify.play()))}
+            aria-label={state?.isPlaying ? 'Pause (double tap to like)' : 'Play (double tap to like)'}
+            onClick={tapDisc}
           >
             {track?.artwork ? <img key={track.artwork} src={track.artwork} alt="" /> : <div className="disc-empty" />}
+            {isPopping && (
+              <span className="pop" aria-hidden="true">
+                <Icon name="heart" filled />
+              </span>
+            )}
             <svg className="ring" viewBox="0 0 100 100" aria-hidden="true">
               <circle className="ring-track" cx="50" cy="50" r="48" />
               <circle
@@ -304,7 +312,14 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
           </button>
         </div>
         <div className="player-bottom">
-          <div className="player-title">{track?.name ?? (state ? 'Nothing playing' : '…')}</div>
+          <div className="player-title">
+            {track?.name ?? (state ? 'Nothing playing' : '…')}
+            {track?.saved && (
+              <span className="liked" title="In Liked Songs">
+                <Icon name="heart" filled />
+              </span>
+            )}
+          </div>
           <div className="player-artist">{track?.artists ?? ''}</div>
           <div className="seek" onClick={seek} role="progressbar" aria-valuenow={Math.round(ratio * 100)}>
             <div className="seek-fill" style={{width: `${ratio * 100}%`}} />
@@ -334,57 +349,6 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
               <Icon name="next" />
             </button>
           </div>
-          <div className="row controls-row">
-            <button
-              type="button"
-              className={`round small heart ${track?.saved ? 'on' : ''}`}
-              aria-label={track?.saved ? 'Remove from Liked Songs' : 'Add to Liked Songs'}
-              aria-pressed={track?.saved ?? false}
-              disabled={!track}
-              onClick={() => track && like(track)}
-            >
-              <Icon name="heart" filled={track?.saved ?? false} />
-            </button>
-            <button
-              type="button"
-              className={`round small ${state?.shuffle ? '' : 'muted'}`}
-              aria-label="Shuffle"
-              onClick={() => act(() => api.spotify.shuffle(!state?.shuffle))}
-            >
-              <Icon name="shuffle" />
-            </button>
-            <button
-              type="button"
-              className={`round small ${'off' === state?.repeat ? 'muted' : ''}`}
-              aria-label="Repeat"
-              onClick={() => act(() => api.spotify.repeat(nextRepeat(state?.repeat ?? 'off')))}
-            >
-              <Icon name="repeat" />
-              {'track' === state?.repeat && <span className="badge">1</span>}
-            </button>
-            <button type="button" className="round small" aria-label="Search" onClick={() => setSheet('search')}>
-              <Icon name="search" />
-            </button>
-            <button type="button" className="round small" aria-label="Up next" onClick={() => setSheet('queue')}>
-              <Icon name="layers" />
-            </button>
-            <label className="round small select-wrap">
-              <Icon name="list" />
-              <select
-                value=""
-                aria-label="Playlists"
-                onPointerDown={loadPlaylists}
-                onChange={event => playPlaylist(event.target.value)}
-              >
-                <option value="">Playlists…</option>
-                {playlists.map(playlist => (
-                  <option key={playlist.id} value={playlist.uri}>
-                    {playlist.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
           <div className="row volume-row">
             <button type="button" className="step" aria-label="Volume down" onClick={() => stepVolume(-VOLUME_STEP)}>
               <Icon name="volumeDown" />
@@ -403,10 +367,6 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
           </div>
         </div>
       </div>
-      {'search' === sheet && (
-        <Search api={api} onClose={() => setSheet(null)} onPlayed={() => window.setTimeout(refresh, AFTER_ACTION_MS)} />
-      )}
-      {'queue' === sheet && <Queue api={api} current={track} onClose={() => setSheet(null)} />}
     </section>
   );
 };

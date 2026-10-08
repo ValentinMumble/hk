@@ -394,24 +394,6 @@ input[type='range'] {
   position: relative;
 }
 
-.badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  font-size: 0.6rem;
-  line-height: 1;
-}
-
-.controls-row {
-  flex-wrap: nowrap;
-  gap: 6px;
-}
-
-.controls-row .round.small {
-  width: 44px;
-  height: 44px;
-}
-
 .volume-row {
   flex-wrap: nowrap;
   color: rgba(255, 255, 255, 0.6);
@@ -486,6 +468,34 @@ input[type='range'] {
   background: #1a1a1a;
 }
 
+/* heart that pops on a double tap */
+.disc .pop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 96px;
+  color: var(--accent);
+  animation: pop-heart 600ms ease forwards;
+  pointer-events: none;
+}
+
+@keyframes pop-heart {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
 .player.paused .disc {
   transform: scale(0.92);
   opacity: 0.7;
@@ -523,6 +533,12 @@ input[type='range'] {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.liked {
+  margin-left: 8px;
+  font-size: 0.85em;
+  vertical-align: -0.1em;
 }
 
 .player-artist {
@@ -575,10 +591,6 @@ input[type='range'] {
 
 .player .round.small:not(.muted) {
   color: var(--accent);
-}
-
-.player .heart {
-  color: rgba(255, 255, 255, 0.55);
 }
 
 .player .round.muted {
@@ -808,18 +820,6 @@ a.status,
   text-decoration: none;
 }
 
-.player .heart.on {
-  color: var(--accent);
-}
-
-.heart:active {
-  transform: scale(1.2);
-}
-
-.player .heart:disabled {
-  opacity: 0.3;
-}
-
 .step {
   display: inline-flex;
   justify-content: center;
@@ -848,96 +848,6 @@ a.status,
   -webkit-appearance: none;
   font-size: 16px;
   cursor: pointer;
-}
-
-/* sheets: search and queue over the player */
-.sheet {
-  position: fixed;
-  left: 12px;
-  right: 12px;
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
-  z-index: 15;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-width: 456px;
-  margin: 0 auto;
-  padding: 16px;
-  border-radius: 28px;
-  animation: rise 220ms ease;
-}
-
-.search-input {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 14px;
-  background: rgba(0, 0, 0, 0.35);
-  color: var(--fg);
-  font: inherit;
-  font-size: 16px;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.list-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.list-item.now {
-  opacity: 0.6;
-}
-
-.list-main {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  padding: 8px 4px;
-  color: var(--fg);
-  text-align: left;
-}
-
-.list-main img,
-.list-art {
-  flex: none;
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  background: #222;
-  object-fit: cover;
-}
-
-.list-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.list-title,
-.list-sub {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.list-sub {
-  font-size: 0.75rem;
-  color: var(--muted);
 }
 
 /* status in settings */
