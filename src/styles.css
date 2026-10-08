@@ -31,12 +31,21 @@ html {
 }
 
 body {
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
   background: transparent;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 /* current album art, blurred, behind the whole app so the glass has something to refract */
 .backdrop {
-  position: fixed;
+  position: absolute;
   inset: -80px;
   z-index: -1;
   width: calc(100% + 160px);
@@ -56,13 +65,15 @@ body {
 
 main {
   display: flex;
+  flex: 1;
   flex-direction: column;
   justify-content: center;
   gap: 24px;
+  width: 100%;
   max-width: 480px;
-  height: 100dvh;
+  min-height: 0;
   margin: 0 auto;
-  padding: calc(env(safe-area-inset-top, 0px) + 20px) 16px calc(env(safe-area-inset-bottom, 0px) + 92px);
+  padding: calc(env(safe-area-inset-top, 0px) + 20px) 16px 12px;
   overflow-y: auto;
 }
 
@@ -345,7 +356,7 @@ input[type='range'] {
 }
 
 .toast {
-  position: fixed;
+  position: absolute;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 100px); /* above the tab bar */
   left: 50%;
   z-index: 20;
@@ -688,15 +699,13 @@ input[type='range'] {
 }
 
 .tabbar {
-  position: fixed;
-  left: 50%;
-  bottom: max(14px, env(safe-area-inset-bottom));
+  flex: none;
   z-index: 10;
   display: flex;
   gap: 4px;
+  margin: 0 auto calc(env(safe-area-inset-bottom, 0px) + 14px);
   padding: 6px;
   border-radius: 999px;
-  transform: translateX(-50%);
   --tab-width: 80px;
 }
 

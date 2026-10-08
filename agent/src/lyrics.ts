@@ -9,7 +9,40 @@ const API = 'https://api.genius.com';
 const TIMEOUT_MS = 10_000;
 const CACHE_SIZE = 10;
 
-type Hit = {result: {title: string; url: string; primary_artist: {name: string}}};
+export type Hit = {result: {title: string; url: string; primary_artist: {name: string}}};
+
+/** Lowercase, no accents, no punctuation, no leading "the": enough to compare names loosely. */
+const normalize = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/^the\s+/, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+/** Same, with version notes such as "(Live)" or "- Remastered" removed first. */
+const loose = (value: string) => normalize(cleanTitle(value));
+
+const overlaps = (left: string, right: string) =>
+  Boolean(left && right) && (left.includes(right) || right.includes(left));
+
+/**
+ * The hit to use, or null when none is by the wanted artist. A title match alone is not enough: Genius always
+ * returns something, and a wrong song's lyrics are worse than none. Exported for tests.
+ */
+export const pickHit = (hits: Hit[], artist: string, title: string): Hit | null => {
+  const wantedArtist = loose(artist);
+  const wantedTitle = loose(title);
+  const byArtist = hits.filter(hit => overlaps(loose(hit.result.primary_artist.name), wantedArtist));
+
+  return (
+    byArtist.find(hit => normalize(hit.result.title) === wantedTitle) ??
+    byArtist.find(hit => overlaps(loose(hit.result.title), wantedTitle)) ??
+    byArtist[0] ??
+    null
+  );
+};
 
 const get = (
   url: string,
@@ -142,11 +175,9 @@ export const createLyrics = (token: string): Lyrics => {
       if (search.status >= 400) throw new Error(`Genius: search failed (HTTP ${search.status})`);
 
       const hits = (JSON.parse(search.body) as {response?: {hits?: Hit[]}}).response?.hits ?? [];
-      const wanted = cleanTitle(artist).toLowerCase();
-      const hit =
-        hits.find(candidate => candidate.result.primary_artist.name.toLowerCase().includes(wanted)) ?? hits[0];
+      const hit = pickHit(hits, artist, title);
 
-      if (!hit) throw new Error('No lyrics found');
+      if (!hit) throw new Error('No lyrics found for this song');
 
       const page = await get(hit.result.url, {'user-agent': 'Mozilla/5.0 (hk agent)'});
       const lyrics = extractLyrics(page.body);

@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {cleanTitle, extractLyrics} from './lyrics.js';
+import {cleanTitle, extractLyrics, pickHit, type Hit} from './lyrics.js';
 
 describe('cleanTitle', () => {
   it('drops remaster and feat suffixes and accents', () => {
@@ -31,5 +31,29 @@ describe('extractLyrics', () => {
 
   it('returns an empty string when the page has no lyrics block', () => {
     expect(extractLyrics('<html><body>nope</body></html>')).toBe('');
+  });
+});
+
+describe('pickHit', () => {
+  const hit = (artist: string, title: string): Hit => ({
+    result: {title, url: `https://genius.com/${title}`, primary_artist: {name: artist}},
+  });
+
+  it('prefers the hit by the right artist with the right title', () => {
+    const hits = [hit('Speedknot Mobstaz', 'Chicago'), hit('Pink Floyd', 'Time (Live)'), hit('Pink Floyd', 'Time')];
+
+    expect(pickHit(hits, 'Pink Floyd', 'Time - 2011 Remaster')?.result.title).toBe('Time');
+  });
+
+  it('accepts a loose artist match, such as a missing "The"', () => {
+    const hits = [hit('Jesus and Mary Chain', 'Just Like Honey')];
+
+    expect(pickHit(hits, 'The Jesus and Mary Chain', 'Just Like Honey')).toBe(hits[0]);
+  });
+
+  it('returns nothing when no hit is by the artist, even if a title looks close', () => {
+    const hits = [hit('Speedknot Mobstaz', 'Chicago'), hit('Somebody', 'Working After Dark')];
+
+    expect(pickHit(hits, 'Drinking Flowers', 'Working After Dark')).toBeNull();
   });
 });
