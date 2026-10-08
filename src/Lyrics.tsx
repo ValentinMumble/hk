@@ -62,7 +62,18 @@ export const Lyrics = ({api}: {api: Api}) => {
         <p className="status">😶 {error}</p>
       ) : (
         <div className="lyrics" ref={scrollRef}>
-          {result?.lyrics}
+          {result?.lyrics.split('\n').map((line, index) =>
+            /^\[.*\]$/.test(line.trim()) ? (
+              <span key={index} className="marker">
+                {line.trim().slice(1, -1)}
+              </span>
+            ) : (
+              <span key={index}>
+                {line}
+                {'\n'}
+              </span>
+            ),
+          )}
         </div>
       )}
     </section>

@@ -1,6 +1,10 @@
 import {HK_COMMANDS} from './hk.js';
 import type {Devices, HueState, Light, PlaybackState, SpotifyDevice, SpotifyPlaylist, SpotifyTrack} from './types.js';
 
+/** A colourful placeholder so the artwork effects can be seen without Spotify. */
+const MOCK_ART =
+  'data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 300 300%22%3E%3Cdefs%3E%3ClinearGradient id=%22g%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22%3E%3Cstop offset=%220%22 stop-color=%22%23ff5e3a%22/%3E%3Cstop offset=%220.5%22 stop-color=%22%23b980ff%22/%3E%3Cstop offset=%221%22 stop-color=%22%2301a7c2%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width=%22300%22 height=%22300%22 fill=%22url(%23g)%22/%3E%3Ccircle cx=%22150%22 cy=%22150%22 r=%2270%22 fill=%22%23ffd166%22/%3E%3C/svg%3E';
+
 const STATUS_REPLY =
   '<?xml version="1.0" encoding="UTF-8"?><harman><avr><common><status><name>heart-alive</name><zone>Main Zone</zone><para>on</para></status></common></avr></harman>';
 
@@ -30,7 +34,14 @@ export const createMockDevices = (): Devices => {
   };
 
   const tracks: SpotifyTrack[] = [
-    {id: 't1', uri: 'spotify:track:t1', name: 'Mock Song', artists: 'The Mocks', album: 'Mockumentary', artwork: null},
+    {
+      id: 't1',
+      uri: 'spotify:track:t1',
+      name: 'Mock Song',
+      artists: 'The Mocks',
+      album: 'Mockumentary',
+      artwork: MOCK_ART,
+    },
     {
       id: 't2',
       uri: 'spotify:track:t2',

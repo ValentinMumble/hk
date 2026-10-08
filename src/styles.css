@@ -14,15 +14,19 @@
 html,
 body {
   margin: 0;
-  background: var(--bg);
-  background-image:
-    radial-gradient(70% 45% at 50% 0%, color-mix(in srgb, var(--accent) 26%, transparent) 0%, transparent 100%),
-    radial-gradient(80% 40% at 50% 100%, color-mix(in srgb, var(--accent) 30%, transparent) 0%, transparent 100%);
-  background-attachment: fixed;
   color: var(--fg);
   font-family: ui-monospace, Menlo, monospace;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+}
+
+/* the blurred artwork has z-index -1: it must sit above the canvas, so only html carries the black */
+html {
+  background: var(--bg);
+}
+
+body {
+  background: transparent;
 }
 
 /* current album art, blurred, behind the whole app so the glass has something to refract */
@@ -33,10 +37,12 @@ body {
   width: calc(100% + 160px);
   height: calc(100% + 160px);
   object-fit: cover;
-  filter: blur(60px) brightness(0.35) saturate(1.4);
+  filter: blur(48px) brightness(0.6) saturate(1.4);
   opacity: 0;
   transition: opacity 1200ms ease;
   pointer-events: none;
+  -webkit-mask-image: linear-gradient(#000 15%, rgba(0, 0, 0, 0.5) 55%, transparent 100%);
+  mask-image: linear-gradient(#000 15%, rgba(0, 0, 0, 0.5) 55%, transparent 100%);
 }
 
 .backdrop.visible {
@@ -120,8 +126,8 @@ button {
   padding: 0;
   cursor: pointer;
   transition:
-    color 600ms ease,
-    background-color 600ms ease,
+    color 250ms ease,
+    background-color 250ms ease,
     transform 100ms ease;
 }
 
@@ -171,7 +177,7 @@ button:active {
   gap: 6px;
   min-height: 44px;
   padding: 8px 16px;
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
   border-radius: 999px;
   color: var(--fg);
 }
@@ -224,8 +230,7 @@ button:active {
   background: var(--light);
   border-color: transparent;
   color: #000;
-  box-shadow: 0 0 calc(8px + 12px * var(--level)) var(--light);
-  opacity: calc(0.5 + 0.5 * var(--level));
+  opacity: calc(0.45 + 0.55 * var(--level));
 }
 
 .light.dim {
@@ -245,7 +250,6 @@ button:active {
   max-width: 40px;
   border-radius: 50%;
   border: 2px solid transparent;
-  box-shadow: inset 0 -6px 12px rgba(0, 0, 0, 0.25);
   transition: transform 150ms ease;
 }
 
@@ -268,11 +272,10 @@ button:active {
 .all-off {
   width: 76px;
   height: 76px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
   font-size: 30px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .brightness-row {
@@ -399,6 +402,16 @@ input[type='range'] {
   line-height: 1;
 }
 
+.controls-row {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.controls-row .round.small {
+  width: 44px;
+  height: 44px;
+}
+
 .volume-row {
   flex-wrap: nowrap;
   color: rgba(255, 255, 255, 0.6);
@@ -441,7 +454,6 @@ input[type='range'] {
 .player h2,
 .player .status {
   color: rgba(255, 255, 255, 0.75);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
 }
 
 .disc {
@@ -466,7 +478,7 @@ input[type='range'] {
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   animation: fade 700ms ease;
 }
 
@@ -506,9 +518,8 @@ input[type='range'] {
 .player-title {
   font-size: 1.15rem;
   font-weight: bold;
-  color: #fff;
+  color: var(--accent);
   text-align: center;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -518,7 +529,6 @@ input[type='range'] {
   color: rgba(255, 255, 255, 0.75);
   font-style: italic;
   text-align: center;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -561,7 +571,14 @@ input[type='range'] {
 
 .player button {
   color: #fff;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+
+.player .round.small:not(.muted) {
+  color: var(--accent);
+}
+
+.player .heart {
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .player .round.muted {
@@ -572,43 +589,22 @@ input[type='range'] {
   width: 76px;
   height: 76px;
   font-size: 40px;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--accent);
   color: #000;
-  text-shadow: none;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
 }
 
 .player input[type='range'] {
-  accent-color: #fff;
+  accent-color: var(--accent);
 }
 
 /* Liquid glass tab bar */
 .glass {
   position: relative;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.2),
-    rgba(255, 255, 255, 0.07) 50%,
-    rgba(255, 255, 255, 0.12)
-  );
-  -webkit-backdrop-filter: blur(26px) saturate(180%);
-  backdrop-filter: blur(26px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-top-color: rgba(255, 255, 255, 0.42);
-  box-shadow:
-    0 18px 50px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-}
-
-/* specular highlight along the top edge */
-.glass::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0) 60%);
-  pointer-events: none;
+  background: rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
 }
 
 .tabbar {
@@ -637,7 +633,6 @@ input[type='range'] {
   color: rgba(255, 255, 255, 0.58);
   font-size: 0.62rem;
   letter-spacing: 0.05em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   transition: color 300ms ease;
 }
 
@@ -646,7 +641,7 @@ input[type='range'] {
 }
 
 .tab.active {
-  color: #fff;
+  color: var(--accent);
 }
 
 .tab:active {
@@ -661,13 +656,9 @@ input[type='range'] {
   left: 6px;
   width: var(--tab-width);
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.16));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.1),
-    0 4px 12px rgba(0, 0, 0, 0.25);
+  background: color-mix(in srgb, var(--accent) 22%, rgba(255, 255, 255, 0.08));
   transform: translateX(calc(var(--index) * (var(--tab-width) + 4px)));
-  transition: transform 480ms cubic-bezier(0.3, 1.3, 0.5, 1);
+  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 /* colour wheel: hue around, white in the centre */
@@ -679,9 +670,6 @@ input[type='range'] {
   background:
     radial-gradient(circle, #fff 0%, rgba(255, 255, 255, 0) 72%),
     conic-gradient(from 0deg, #ff0040, #ff8000, #ffff00, #00ff40, #00ffff, #0040ff, #ff00ff, #ff0040);
-  box-shadow:
-    inset 0 0 30px rgba(0, 0, 0, 0.35),
-    0 10px 30px rgba(0, 0, 0, 0.5);
   touch-action: none;
   cursor: crosshair;
 }
@@ -732,6 +720,15 @@ input[type='range'] {
 
 .lyrics-panel {
   justify-content: flex-start;
+}
+
+.lyrics .marker {
+  display: block;
+  margin-top: 0.6em;
+  color: var(--accent);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .lyrics {
@@ -811,8 +808,8 @@ a.status,
   text-decoration: none;
 }
 
-.heart.on {
-  color: #ff4d6d;
+.player .heart.on {
+  color: var(--accent);
 }
 
 .heart:active {

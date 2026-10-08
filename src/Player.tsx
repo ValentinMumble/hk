@@ -263,7 +263,7 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
         <div className="player-top">
           <h2>
             <a className="app-link" href="spotify:" title="Open the Spotify app">
-              Spotify ↗
+              Spotify
             </a>
           </h2>
           <label className="status select-wrap">
@@ -334,7 +334,7 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
               <Icon name="next" />
             </button>
           </div>
-          <div className="row">
+          <div className="row controls-row">
             <button
               type="button"
               className={`round small heart ${track?.saved ? 'on' : ''}`}
