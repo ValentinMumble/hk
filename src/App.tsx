@@ -127,25 +127,33 @@ export const App = () => {
 
   return (
     <>
-      <main key={tab} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        {'hk' === tab && (
+      <main onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        {/* every tab stays mounted and keeps its state; only the active one is shown */}
+        <div className="tab-panel" hidden={'hue' !== tab}>
+          <Lights api={api} />
+        </div>
+        <div className="tab-panel" hidden={'hk' !== tab}>
           <Sound
             api={api}
             sources={info?.sources ?? []}
             isMock={info?.mock ?? false}
             onSettings={() => setEditing(true)}
           />
-        )}
-        {'spotify' === tab &&
-          (info?.spotify.configured ? (
+        </div>
+        <div className="tab-panel" hidden={'spotify' !== tab}>
+          {info?.spotify.configured ? (
             <Player api={api} connected={info.spotify.connected} onConnected={loadInfo} />
           ) : (
             <section className="panel">
               <p className="status">{info ? 'Spotify is not configured on the agent' : '…'}</p>
             </section>
-          ))}
-        {'hue' === tab && <Lights api={api} />}
-        {'lyrics' === tab && <Lyrics api={api} />}
+          )}
+        </div>
+        {info?.lyrics?.configured && (
+          <div className="tab-panel" hidden={'lyrics' !== tab}>
+            <Lyrics api={api} />
+          </div>
+        )}
       </main>
       <nav className="tabbar glass" style={{'--index': index} as React.CSSProperties} aria-label="Sections">
         <span className="tab-glow" aria-hidden="true" />

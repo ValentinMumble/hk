@@ -64,7 +64,18 @@ main {
   margin: 0 auto;
   padding: calc(env(safe-area-inset-top, 0px) + 20px) 16px calc(env(safe-area-inset-bottom, 0px) + 92px);
   overflow-y: auto;
+}
+
+.tab-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
   animation: rise 260ms ease;
+}
+
+.tab-panel[hidden] {
+  display: none;
 }
 
 .panel-body {
