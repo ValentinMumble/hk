@@ -5,6 +5,7 @@ describe('cleanTitle', () => {
   it('drops remaster and feat suffixes and accents', () => {
     expect(cleanTitle('Shine On You Crazy Diamond - 2011 Remastered Version')).toBe('Shine On You Crazy Diamond');
     expect(cleanTitle('Umbrella (feat. JAY-Z)')).toBe('Umbrella');
+    expect(cleanTitle('Stargazing (with Justin Jesso)')).toBe('Stargazing');
     expect(cleanTitle('Élodie  Frégé')).toBe('Elodie Frege');
   });
 });
@@ -55,5 +56,21 @@ describe('pickHit', () => {
     const hits = [hit('Speedknot Mobstaz', 'Chicago'), hit('Somebody', 'Working After Dark')];
 
     expect(pickHit(hits, 'Drinking Flowers', 'Working After Dark')).toBeNull();
+  });
+
+  it('returns nothing when the artist is right but the song is not on Genius', () => {
+    const hits = [hit('Drinking Flowers', 'Simulated Happiness'), hit('Drinking Flowers', 'Black Monday')];
+
+    expect(pickHit(hits, 'Drinking Flowers', 'Working After Dark')).toBeNull();
+  });
+
+  it('does not take a shorter title or a word inside another name as a match', () => {
+    expect(pickHit([hit('Drinking Flowers', 'Working')], 'Drinking Flowers', 'Working After Dark')).toBeNull();
+    expect(pickHit([hit('Fairground Attraction', 'Perfect')], 'Air', 'Perfect')).toBeNull();
+  });
+
+  it('matches titles that differ only by a bracketed note or "&"', () => {
+    expect(pickHit([hit('Kygo', 'Stargazing')], 'Kygo', 'Stargazing (with Justin Jesso)')).not.toBeNull();
+    expect(pickHit([hit('Queen', 'Rock and Roll')], 'Queen', 'Rock & Roll')).not.toBeNull();
   });
 });

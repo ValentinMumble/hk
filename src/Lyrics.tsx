@@ -22,7 +22,12 @@ export const Lyrics = ({api}: {api: Api}) => {
         return next;
       });
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : String(loadError));
+      const message = loadError instanceof Error ? loadError.message : String(loadError);
+
+      setError(message);
+      // The agent answered (new song without lyrics, nothing playing): the old lyrics are wrong now.
+      // When it is only unreachable, keep them on screen.
+      if ('Agent unreachable' !== message) setResult(null);
     } finally {
       setLoading(false);
     }

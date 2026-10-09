@@ -18,28 +18,34 @@ const normalize = (value: string) =>
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/^the\s+/, '')
+    .replace(/&/g, ' and ')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
 /** Same, with version notes such as "(Live)" or "- Remastered" removed first. */
 const loose = (value: string) => normalize(cleanTitle(value));
 
+/** Whole-word containment either way, so "Daft Punk" matches "Daft Punk & Pharrell" but "Air" not "Fairground". */
 const overlaps = (left: string, right: string) =>
-  Boolean(left && right) && (left.includes(right) || right.includes(left));
+  Boolean(left && right) && (` ${left} `.includes(` ${right} `) || ` ${right} `.includes(` ${left} `));
+
+/** Title without any bracketed part, for "Song (with X)" against "Song", or "(Pts. 1-5)" against "(Parts I-V)". */
+const bare = (value: string) => normalize(value.replace(/\s*[([].*?[)\]]/g, ''));
 
 /**
- * The hit to use, or null when none is by the wanted artist. A title match alone is not enough: Genius always
- * returns something, and a wrong song's lyrics are worse than none. Exported for tests.
+ * The hit to use, or null when no hit is this song by this artist. Both must match: Genius always returns
+ * something, and another song's lyrics (even by the same artist) are worse than none. Exported for tests.
  */
 export const pickHit = (hits: Hit[], artist: string, title: string): Hit | null => {
   const wantedArtist = loose(artist);
   const wantedTitle = loose(title);
+  const wantedBare = bare(cleanTitle(title));
   const byArtist = hits.filter(hit => overlaps(loose(hit.result.primary_artist.name), wantedArtist));
 
   return (
     byArtist.find(hit => normalize(hit.result.title) === wantedTitle) ??
-    byArtist.find(hit => overlaps(loose(hit.result.title), wantedTitle)) ??
-    byArtist[0] ??
+    byArtist.find(hit => loose(hit.result.title) === wantedTitle) ??
+    byArtist.find(hit => Boolean(wantedBare) && bare(hit.result.title) === wantedBare) ??
     null
   );
 };
@@ -76,7 +82,7 @@ export const cleanTitle = (value: string) =>
   value
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
-    .replace(/\s*[([].*?(feat|remaster|version|edit|mix|live|mono|stereo|deluxe).*?[)\]]/gi, '')
+    .replace(/\s*[([].*?(feat|\bwith\b|\bft\b|remaster|version|edit|mix|live|mono|stereo|deluxe).*?[)\]]/gi, '')
     .replace(/\s+-\s+.*(remaster|version|edit|mix|live|mono|stereo|deluxe).*$/i, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -160,7 +166,12 @@ export const extractLyrics = (html: string): string => {
 };
 
 export const createLyrics = (token: string): Lyrics => {
-  const cache = new Map<string, LyricsResult>();
+  // null marks a song Genius has no lyrics for, so the app's polling does not search again every time.
+  const cache = new Map<string, LyricsResult | null>();
+  const remember = (key: string, result: LyricsResult | null) => {
+    cache.set(key, result);
+    if (cache.size > CACHE_SIZE) cache.delete(cache.keys().next().value as string);
+  };
 
   return {
     lookup: async (artist, title) => {
@@ -168,6 +179,7 @@ export const createLyrics = (token: string): Lyrics => {
       const cached = cache.get(key);
 
       if (cached) return cached;
+      if (null === cached) throw new Error('No lyrics found for this song');
 
       const query = encodeURIComponent(`${cleanTitle(artist)} ${cleanTitle(title)}`);
       const search = await get(`${API}/search?q=${query}`, {authorization: `Bearer ${token}`});
@@ -177,12 +189,18 @@ export const createLyrics = (token: string): Lyrics => {
       const hits = (JSON.parse(search.body) as {response?: {hits?: Hit[]}}).response?.hits ?? [];
       const hit = pickHit(hits, artist, title);
 
-      if (!hit) throw new Error('No lyrics found for this song');
+      if (!hit) {
+        remember(key, null);
+        throw new Error('No lyrics found for this song');
+      }
 
       const page = await get(hit.result.url, {'user-agent': 'Mozilla/5.0 (hk agent)'});
       const lyrics = extractLyrics(page.body);
 
-      if (!lyrics) throw new Error('No lyrics on the Genius page');
+      if (!lyrics) {
+        remember(key, null);
+        throw new Error('No lyrics on the Genius page');
+      }
 
       const result: LyricsResult = {
         title: hit.result.title,
@@ -191,8 +209,7 @@ export const createLyrics = (token: string): Lyrics => {
         lyrics,
       };
 
-      cache.set(key, result);
-      if (cache.size > CACHE_SIZE) cache.delete(cache.keys().next().value as string);
+      remember(key, result);
 
       return result;
     },
