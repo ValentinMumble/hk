@@ -67,6 +67,9 @@ export const App = () => {
   }, []);
 
   useEffect(() => {
+    // The stylesheet shows the artwork backdrop only on the Spotify tab
+    document.body.dataset.tab = tab;
+
     try {
       window.localStorage.setItem(TAB_KEY, tab);
     } catch {

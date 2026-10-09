@@ -63,6 +63,11 @@ body {
   opacity: 1;
 }
 
+body:not([data-tab='spotify']) .backdrop {
+  opacity: 0;
+  transition-duration: 300ms;
+}
+
 main {
   display: flex;
   flex: 1;
