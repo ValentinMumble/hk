@@ -35,6 +35,7 @@ export const App = () => {
   const [settings, setSettings] = useState<Settings | null>(loadSettings);
   const [isEditing, setEditing] = useState(false);
   const [info, setInfo] = useState<AgentInfo | null>(null);
+  const [trackId, setTrackId] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>(loadTab);
   const touchStart = useRef<{x: number; y: number} | null>(null);
 
@@ -145,7 +146,7 @@ export const App = () => {
         </div>
         <div className="tab-panel" hidden={'spotify' !== tab}>
           {info?.spotify.configured ? (
-            <Player api={api} connected={info.spotify.connected} onConnected={loadInfo} />
+            <Player api={api} connected={info.spotify.connected} onConnected={loadInfo} onTrack={setTrackId} />
           ) : (
             <section className="panel">
               <p className="status">{info ? 'Spotify is not configured on the agent' : '…'}</p>
@@ -154,7 +155,7 @@ export const App = () => {
         </div>
         {info?.lyrics?.configured && (
           <div className="tab-panel" hidden={'lyrics' !== tab}>
-            <Lyrics api={api} />
+            <Lyrics api={api} trackId={trackId} />
           </div>
         )}
       </main>

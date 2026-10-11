@@ -12,7 +12,12 @@ const DOUBLE_TAP_MS = 280;
 const STATE_KEY = 'hk.spotify.state';
 const RING = 2 * Math.PI * 48;
 
-type PlayerProps = {api: Api; connected: boolean; onConnected: () => void};
+type PlayerProps = {
+  api: Api;
+  connected: boolean;
+  onConnected: () => void;
+  onTrack: (trackId: string | null) => void;
+};
 
 const formatTime = (ms: number) => {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -68,7 +73,7 @@ const setBackdrop = (artwork: string | null) => {
   }
 };
 
-export const Player = ({api, connected, onConnected}: PlayerProps) => {
+export const Player = ({api, connected, onConnected, onTrack}: PlayerProps) => {
   const [state, setState] = useState<PlaybackState | null>(null);
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState<number | null>(null);
@@ -145,6 +150,13 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
     return () => window.clearInterval(timer);
   }, [state]);
 
+  // Tell the app which song plays (once known), so the lyrics tab can fetch it straight away
+  const trackId = state ? (state.track?.id ?? null) : undefined;
+
+  useEffect(() => {
+    if (undefined !== trackId) onTrack(trackId);
+  }, [trackId, onTrack]);
+
   // Accent from the artwork, and the artwork itself as the app's blurred backdrop
   useEffect(() => {
     const artwork = state?.track?.artwork ?? null;
@@ -154,7 +166,11 @@ export const Player = ({api, connected, onConnected}: PlayerProps) => {
     artworkRef.current = artwork;
     setBackdrop(artwork);
 
-    if (!artwork) return;
+    if (!artwork) {
+      document.documentElement.style.removeProperty('--accent');
+
+      return;
+    }
 
     dominantColor(artwork)
       .then(color => document.documentElement.style.setProperty('--accent', color))

@@ -3,7 +3,7 @@
   --fg: #fff;
   --muted: #777;
   --line: #333;
-  --accent: #ffaa71;
+  --accent: #a1a1aa; /* neutral gray until the artwork gives its colour */
   color-scheme: dark;
 }
 

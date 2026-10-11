@@ -2,12 +2,10 @@ import {useCallback, useEffect, useRef, useState} from 'react';
 import {Marquee} from './Marquee';
 import type {Api, LyricsResult} from './api';
 
-const POLL_MS = 10_000;
-
-export const Lyrics = ({api}: {api: Api}) => {
+/** `trackId` is the song the player sees: a new one loads its lyrics at once, even while the tab is hidden. */
+export const Lyrics = ({api, trackId}: {api: Api; trackId: string | null}) => {
   const [result, setResult] = useState<LyricsResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -28,45 +26,42 @@ export const Lyrics = ({api}: {api: Api}) => {
       // The agent answered (new song without lyrics, nothing playing): the old lyrics are wrong now.
       // When it is only unreachable, keep them on screen.
       if ('Agent unreachable' !== message) setResult(null);
-    } finally {
-      setLoading(false);
     }
   }, [api]);
 
   useEffect(() => {
+    setError(null);
     load();
-    const timer = window.setInterval(() => {
-      if ('visible' === document.visibilityState) load();
-    }, POLL_MS);
+  }, [load, trackId]);
 
-    return () => window.clearInterval(timer);
-  }, [load]);
+  // While the new song's lyrics are on their way, show the loader rather than the previous song's
+  const shown = result && (!trackId || result.trackId === trackId) ? result : null;
 
   return (
     <section className="panel lyrics-panel">
       <header className="panel-header">
         <h2>Lyrics</h2>
-        {result && (
-          <a className="status" href={result.url} target="_blank" rel="noreferrer">
+        {shown && (
+          <a className="status" href={shown.url} target="_blank" rel="noreferrer">
             Genius ↗
           </a>
         )}
       </header>
-      {result && (
+      {shown && (
         <div className="track">
-          <Marquee className="track-name">{result.title}</Marquee>
-          <Marquee className="track-artist">{result.artist}</Marquee>
+          <Marquee className="track-name">{shown.title}</Marquee>
+          <Marquee className="track-artist">{shown.artist}</Marquee>
         </div>
       )}
-      {isLoading && !result ? (
+      {!shown && !error ? (
         <div className="loader" role="status" aria-label="Finding lyrics">
           <span className="spinner" />
         </div>
-      ) : error && !result ? (
+      ) : !shown ? (
         <p className="status">😶 {error}</p>
       ) : (
         <div className="lyrics" ref={scrollRef}>
-          {result?.lyrics.split('\n').map((line, index) =>
+          {shown.lyrics.split('\n').map((line, index) =>
             /^\[.*\]$/.test(line.trim()) ? (
               <span key={index} className="marker">
                 {line.trim().slice(1, -1)}
