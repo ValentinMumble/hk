@@ -158,7 +158,11 @@ export const App = () => {
           </div>
         )}
       </main>
-      <nav className="tabbar glass" style={{'--index': index} as React.CSSProperties} aria-label="Sections">
+      <nav
+        className="tabbar glass"
+        style={{'--index': index, '--count': tabs.length} as React.CSSProperties}
+        aria-label="Sections"
+      >
         <span className="tab-glow" aria-hidden="true" />
         {tabs.map(candidate => (
           <button
