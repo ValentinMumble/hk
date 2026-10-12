@@ -22,8 +22,13 @@ export type Light = {
   color: string;
 };
 
+/** A scene saved on the bridge (in the Hue app), with the room it belongs to. */
+export type HueScene = {id: string; name: string; room: string | null};
+
 export type Hue = {
   lights(): Promise<Light[]>;
+  scenes(): Promise<HueScene[]>;
+  recallScene(id: string): Promise<void>;
   /** Apply a state to every light at once (Hue group 0). */
   setAll(state: HueState): Promise<void>;
   setLight(id: string, state: HueState): Promise<void>;
@@ -96,10 +101,26 @@ export type Spotify = {
   search(query: string): Promise<SpotifyTrack[]>;
 };
 
-export type LyricsResult = {title: string; artist: string; url: string; lyrics: string};
+/** One line of time-coded lyrics: when it starts in the song, and its words (empty for a pause). */
+export type LyricsLine = {timeMs: number; text: string};
 
-export type Lyrics = {
-  lookup(artist: string, title: string): Promise<LyricsResult>;
+export type LyricsResult = {
+  title: string;
+  artist: string;
+  /** Where the words come from, for the credit link. */
+  source: 'LRCLIB' | 'Genius';
+  url: string;
+  lyrics: string;
+  /** Time-coded lines, only when the source has them for a recording of this length. */
+  synced: LyricsLine[] | null;
+  instrumental: boolean;
 };
 
-export type Devices = {hk: Hk; hue: Hue; spotify: Spotify | null; lyrics: Lyrics | null};
+/** The song to find lyrics for. Without its length, time-coded lyrics cannot be trusted and are not used. */
+export type Song = {artist: string; title: string; durationMs?: number};
+
+export type Lyrics = {
+  lookup(song: Song): Promise<LyricsResult>;
+};
+
+export type Devices = {hk: Hk; hue: Hue; spotify: Spotify | null; lyrics: Lyrics};

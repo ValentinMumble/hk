@@ -1,9 +1,36 @@
 import {HK_COMMANDS} from './hk.js';
-import type {Devices, HueState, Light, PlaybackState, SpotifyDevice, SpotifyPlaylist, SpotifyTrack} from './types.js';
+import type {
+  Devices,
+  HueScene,
+  HueState,
+  Light,
+  LyricsLine,
+  PlaybackState,
+  SpotifyDevice,
+  SpotifyPlaylist,
+  SpotifyTrack,
+} from './types.js';
 
 /** A colourful placeholder so the artwork effects can be seen without Spotify. */
 const MOCK_ART =
   'data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 300 300%22%3E%3Cdefs%3E%3ClinearGradient id=%22g%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22%3E%3Cstop offset=%220%22 stop-color=%22%23ff5e3a%22/%3E%3Cstop offset=%220.5%22 stop-color=%22%23b980ff%22/%3E%3Cstop offset=%221%22 stop-color=%22%2301a7c2%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width=%22300%22 height=%22300%22 fill=%22url(%23g)%22/%3E%3Ccircle cx=%22150%22 cy=%22150%22 r=%2270%22 fill=%22%23ffd166%22/%3E%3C/svg%3E';
+
+/** Made-up words, a line every four seconds through the three-minute mock songs. */
+const MOCK_WORDS = [
+  'This is a mock song',
+  'With mock lyrics that go on',
+  'Every line arrives on time',
+  'Highlighted as it plays',
+  '',
+  'La la la, mock mock mock',
+  'La la la, around the clock',
+  'Nothing here is real at all',
+  'But the timing is',
+];
+const MOCK_LINES: LyricsLine[] = Array.from({length: 42}, (_unused, index) => ({
+  timeMs: 6000 + index * 4000,
+  text: MOCK_WORDS[index % MOCK_WORDS.length],
+}));
 
 const STATUS_REPLY =
   '<?xml version="1.0" encoding="UTF-8"?><harman><avr><common><status><name>heart-alive</name><zone>Main Zone</zone><para>on</para></status></common></avr></harman>';
@@ -16,6 +43,14 @@ export const createMockDevices = (): Devices => {
     {id: '3', name: 'Pied', on: false, reachable: true, brightness: 100, hasColor: false, color: '#ffe9c4'},
     {id: '4', name: 'Applique', on: false, reachable: false, brightness: 100, hasColor: false, color: '#ffe9c4'},
     {id: '5', name: 'Porte', on: true, reachable: true, brightness: 86, hasColor: false, color: '#ffd1a0'},
+  ];
+
+  const scenes: Array<HueScene & {colors: Record<string, string>}> = [
+    {id: 's1', name: 'Concentrer', room: 'Salon', colors: {'1': '#ffffff', '2': '#ffffff'}},
+    {id: 's2', name: 'Détente', room: 'Salon', colors: {'1': '#ffaa71', '2': '#ff96ca'}},
+    {id: 's3', name: 'Détente', room: 'Chambre', colors: {'2': '#ffaa71'}},
+    {id: 's4', name: 'Lecture', room: 'Salon', colors: {'1': '#ffe9c4'}},
+    {id: 's5', name: 'Veilleuse', room: 'Chambre', colors: {'2': '#b13333'}},
   ];
 
   const find = (id: string): Light => {
@@ -97,12 +132,14 @@ export const createMockDevices = (): Devices => {
 
   return {
     lyrics: {
-      lookup: async (artist, title) => ({
+      lookup: async ({artist, title, durationMs}) => ({
         title,
         artist,
-        url: 'https://genius.com/',
-        lyrics:
-          '[Verse 1]\nThis is a mock song\nWith mock lyrics that go on\n\n[Chorus]\nLa la la, mock mock mock\nLa la la, around the clock',
+        source: 'LRCLIB',
+        url: 'https://lrclib.net',
+        lyrics: MOCK_WORDS.join('\n'),
+        synced: undefined === durationMs ? null : MOCK_LINES,
+        instrumental: false,
       }),
     },
     spotify: {
@@ -179,6 +216,17 @@ export const createMockDevices = (): Devices => {
     },
     hue: {
       lights: async () => lights.map(light => ({...light})),
+      scenes: async () => scenes.map(({id, name, room}) => ({id, name, room})),
+      recallScene: async id => {
+        const scene = scenes.find(candidate => candidate.id === id);
+
+        if (!scene) throw new Error(`Hue: scene ${id} not found`);
+
+        console.log(`[mock] Hue scene ${scene.name} (${scene.room})`);
+        Object.entries(scene.colors).forEach(([lightId, color]) =>
+          apply(find(lightId), {on: true, color, brightness: 80}),
+        );
+      },
       setAll: async state => {
         console.log('[mock] Hue all', state);
         lights.forEach(light => apply(light, state));

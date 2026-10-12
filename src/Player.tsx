@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useRef, useState, type MouseEvent} from 'react';
-import type {Api, PlaybackState, SpotifyDevice} from './api';
+import type {Api, PlaybackState, Playhead, SpotifyDevice} from './api';
 import {dominantColor} from './artwork';
 import {Icon} from './Icon';
 import {Marquee} from './Marquee';
@@ -16,7 +16,7 @@ type PlayerProps = {
   api: Api;
   connected: boolean;
   onConnected: () => void;
-  onTrack: (trackId: string | null) => void;
+  onPlayhead: (playhead: Playhead) => void;
 };
 
 const formatTime = (ms: number) => {
@@ -73,7 +73,7 @@ const setBackdrop = (artwork: string | null) => {
   }
 };
 
-export const Player = ({api, connected, onConnected, onTrack}: PlayerProps) => {
+export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) => {
   const [state, setState] = useState<PlaybackState | null>(null);
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState<number | null>(null);
@@ -150,12 +150,17 @@ export const Player = ({api, connected, onConnected, onTrack}: PlayerProps) => {
     return () => window.clearInterval(timer);
   }, [state]);
 
-  // Tell the app which song plays (once known), so the lyrics tab can fetch it straight away
-  const trackId = state ? (state.track?.id ?? null) : undefined;
-
+  // Tell the app which song plays and where (once known): the lyrics tab loads it at once and follows along
   useEffect(() => {
-    if (undefined !== trackId) onTrack(trackId);
-  }, [trackId, onTrack]);
+    if (!state) return;
+
+    onPlayhead({
+      trackId: state.track?.id ?? null,
+      progressMs: state.progressMs,
+      readAt: state.readAt,
+      isPlaying: state.isPlaying,
+    });
+  }, [state, onPlayhead]);
 
   // Accent from the artwork, and the artwork itself as the app's blurred backdrop
   useEffect(() => {

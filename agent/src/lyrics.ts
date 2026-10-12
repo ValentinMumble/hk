@@ -1,28 +1,52 @@
 import {request as httpsRequest} from 'node:https';
-import type {Lyrics, LyricsResult} from './types.js';
+import type {Lyrics, LyricsLine, LyricsResult, Song} from './types.js';
 
 /**
- * Lyrics through Genius, like the old server: the API finds the song, the song page holds the text
- * (Genius does not serve lyrics through its API), so the page is fetched and its lyrics blocks extracted.
+ * Lyrics from LRCLIB first: an open database with time-coded lines and no key. Genius is the fallback when a token
+ * is set: its API finds the song and the song page holds the text (Genius does not serve lyrics through its API), so
+ * the page is fetched and its lyrics blocks extracted.
  */
-const API = 'https://api.genius.com';
+const LRCLIB_API = 'https://lrclib.net/api';
+const GENIUS_API = 'https://api.genius.com';
 const TIMEOUT_MS = 10_000;
 const CACHE_SIZE = 10;
+const NOT_FOUND = 'No lyrics found for this song';
+/** Time-coded lines only line up with a recording of the same length, give or take this. */
+const SYNC_TOLERANCE_S = 3;
 
 export type Hit = {result: {title: string; url: string; primary_artist: {name: string}}};
+export type LrclibHit = {
+  trackName: string;
+  artistName: string;
+  duration: number;
+  instrumental: boolean;
+  plainLyrics: string | null;
+  syncedLyrics: string | null;
+};
 
 /** Lowercase, no accents, no punctuation, no leading "the": enough to compare names loosely. */
 const normalize = (value: string) =>
   value
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/^the\s+/, '')
     .replace(/&/g, ' and ')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
-/** Same, with version notes such as "(Live)" or "- Remastered" removed first. */
+/** Version notes such as "(feat. X)" or "- 2011 Remaster", which confuse searches and comparisons. */
+const withoutVersionNotes = (value: string) =>
+  value
+    .replace(/\s*[([].*?(feat|\bwith\b|\bft\b|remaster|version|edit|mix|live|mono|stereo|deluxe).*?[)\]]/gi, '')
+    .replace(/\s+-\s+.*(remaster|version|edit|mix|live|mono|stereo|deluxe).*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/** Strip accents and the version notes. */
+export const cleanTitle = (value: string) => withoutVersionNotes(value.normalize('NFD').replace(/[̀-ͯ]/g, ''));
+
+/** Same as normalize, with version notes removed first. */
 const loose = (value: string) => normalize(cleanTitle(value));
 
 /** Whole-word containment either way, so "Daft Punk" matches "Daft Punk & Pharrell" but "Air" not "Fairground". */
@@ -33,21 +57,98 @@ const overlaps = (left: string, right: string) =>
 const bare = (value: string) => normalize(value.replace(/\s*[([].*?[)\]]/g, ''));
 
 /**
- * The hit to use, or null when no hit is this song by this artist. Both must match: Genius always returns
- * something, and another song's lyrics (even by the same artist) are worse than none. Exported for tests.
+ * How well a found song matches the wanted one: 3 for the same title, 2 once version notes are removed, 1 once every
+ * bracketed part is removed, 0 for another title or another artist. Both must match: searches always return
+ * something, and another song's lyrics (even by the same artist) are worse than none.
  */
-export const pickHit = (hits: Hit[], artist: string, title: string): Hit | null => {
-  const wantedArtist = loose(artist);
-  const wantedTitle = loose(title);
-  const wantedBare = bare(cleanTitle(title));
-  const byArtist = hits.filter(hit => overlaps(loose(hit.result.primary_artist.name), wantedArtist));
+const matchScore = (foundArtist: string, foundTitle: string, artist: string, title: string) => {
+  if (!overlaps(loose(foundArtist), loose(artist))) return 0;
+  if (normalize(foundTitle) === loose(title)) return 3;
+  if (loose(foundTitle) === loose(title)) return 2;
 
-  return (
-    byArtist.find(hit => normalize(hit.result.title) === wantedTitle) ??
-    byArtist.find(hit => loose(hit.result.title) === wantedTitle) ??
-    byArtist.find(hit => Boolean(wantedBare) && bare(hit.result.title) === wantedBare) ??
-    null
-  );
+  const wantedBare = bare(cleanTitle(title));
+
+  return wantedBare && bare(foundTitle) === wantedBare ? 1 : 0;
+};
+
+/** The Genius hit to use, or null when no hit is this song by this artist. Exported for tests. */
+export const pickHit = (hits: Hit[], artist: string, title: string): Hit | null => {
+  let best: Hit | null = null;
+  let bestScore = 0;
+
+  for (const hit of hits) {
+    const score = matchScore(hit.result.primary_artist.name, hit.result.title, artist, title);
+
+    if (score > bestScore) {
+      best = hit;
+      bestScore = score;
+    }
+  }
+
+  return best;
+};
+
+const TIME_TAG = /\[(\d+):(\d+(?:\.\d+)?)\]/g;
+
+/** "[01:02.34] words" lines to time-coded lines, in order. Tags such as "[ar: …]" are skipped. Exported for tests. */
+export const parseSynced = (text: string): LyricsLine[] => {
+  const lines: LyricsLine[] = [];
+
+  for (const raw of text.split(/\r?\n/)) {
+    const words = raw.replace(TIME_TAG, '').trim();
+
+    for (const [, minutes, seconds] of raw.matchAll(TIME_TAG)) {
+      lines.push({timeMs: Math.round((Number(minutes) * 60 + Number(seconds)) * 1000), text: words});
+    }
+  }
+
+  return lines.sort((left, right) => left.timeMs - right.timeMs);
+};
+
+/**
+ * Lyrics from LRCLIB search hits, or null when none is this song. Time-coded lines come from the hit whose length is
+ * closest to the recording's, within a few seconds; otherwise the plain words of the closest hit. Exported for tests.
+ */
+export const fromLrclib = (hits: LrclibHit[], {artist, title, durationMs}: Song): LyricsResult | null => {
+  const gap = (hit: LrclibHit) => (undefined === durationMs ? Infinity : Math.abs(hit.duration - durationMs / 1000));
+  const matching = hits
+    .filter(hit => matchScore(hit.artistName, hit.trackName, artist, title) > 0)
+    .sort((left, right) => gap(left) - gap(right));
+  const timed = matching.find(hit => hit.syncedLyrics && gap(hit) <= SYNC_TOLERANCE_S);
+  const closest = timed ?? matching[0];
+
+  if (!closest) return null;
+
+  const base = {
+    title: closest.trackName,
+    artist: closest.artistName,
+    source: 'LRCLIB' as const,
+    url: 'https://lrclib.net',
+  };
+
+  if (timed?.syncedLyrics) {
+    const synced = parseSynced(timed.syncedLyrics);
+
+    return {
+      ...base,
+      lyrics: timed.plainLyrics ?? synced.map(line => line.text).join('\n'),
+      synced,
+      instrumental: false,
+    };
+  }
+
+  if (closest.instrumental) return {...base, lyrics: '', synced: null, instrumental: true};
+
+  const worded = matching.find(hit => hit.plainLyrics || hit.syncedLyrics);
+  const words =
+    worded?.plainLyrics ??
+    (worded?.syncedLyrics
+      ? parseSynced(worded.syncedLyrics)
+          .map(line => line.text)
+          .join('\n')
+      : '');
+
+  return words ? {...base, lyrics: words, synced: null, instrumental: false} : null;
 };
 
 const get = (
@@ -73,19 +174,9 @@ const get = (
     });
 
     request.on('timeout', () => request.destroy(new Error('timed out')));
-    request.on('error', error => reject(new Error(`Genius: ${error.message}`)));
+    request.on('error', error => reject(new Error(`${new URL(url).host}: ${error.message}`)));
     request.end();
   });
-
-/** Strip accents and the usual suffixes that confuse the search ("- Remastered 2011", "(feat. X)"). */
-export const cleanTitle = (value: string) =>
-  value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/\s*[([].*?(feat|\bwith\b|\bft\b|remaster|version|edit|mix|live|mono|stereo|deluxe).*?[)\]]/gi, '')
-    .replace(/\s+-\s+.*(remaster|version|edit|mix|live|mono|stereo|deluxe).*$/i, '')
-    .replace(/\s+/g, ' ')
-    .trim();
 
 const decodeEntities = (value: string) =>
   value
@@ -165,8 +256,45 @@ export const extractLyrics = (html: string): string => {
     .trim();
 };
 
-export const createLyrics = (token: string): Lyrics => {
-  // null marks a song Genius has no lyrics for, so the app's polling does not search again every time.
+const searchLrclib = async ({artist, title}: Song, userAgent: string): Promise<LrclibHit[]> => {
+  const query = new URLSearchParams({artist_name: artist, track_name: withoutVersionNotes(title)});
+  const search = await get(`${LRCLIB_API}/search?${query}`, {'user-agent': userAgent});
+
+  if (search.status >= 400) throw new Error(`LRCLIB: search failed (HTTP ${search.status})`);
+
+  return JSON.parse(search.body) as LrclibHit[];
+};
+
+/** Lyrics from Genius, or null when it has no such song or no words on its page. */
+const fromGenius = async (token: string, {artist, title}: Song): Promise<LyricsResult | null> => {
+  const query = encodeURIComponent(`${cleanTitle(artist)} ${cleanTitle(title)}`);
+  const search = await get(`${GENIUS_API}/search?q=${query}`, {authorization: `Bearer ${token}`});
+
+  if (search.status >= 400) throw new Error(`Genius: search failed (HTTP ${search.status})`);
+
+  const hits = (JSON.parse(search.body) as {response?: {hits?: Hit[]}}).response?.hits ?? [];
+  const hit = pickHit(hits, artist, title);
+
+  if (!hit) return null;
+
+  const page = await get(hit.result.url, {'user-agent': 'Mozilla/5.0 (hk agent)'});
+  const lyrics = extractLyrics(page.body);
+
+  if (!lyrics) return null;
+
+  return {
+    title: hit.result.title,
+    artist: hit.result.primary_artist.name,
+    source: 'Genius',
+    url: hit.result.url,
+    lyrics,
+    synced: null,
+    instrumental: false,
+  };
+};
+
+export const createLyrics = ({geniusToken, userAgent}: {geniusToken: string | null; userAgent: string}): Lyrics => {
+  // null marks a song no source has lyrics for, so the app does not search again each time it asks
   const cache = new Map<string, LyricsResult | null>();
   const remember = (key: string, result: LyricsResult | null) => {
     cache.set(key, result);
@@ -174,42 +302,24 @@ export const createLyrics = (token: string): Lyrics => {
   };
 
   return {
-    lookup: async (artist, title) => {
-      const key = `${artist}|${title}`.toLowerCase();
+    lookup: async song => {
+      const key = `${song.artist}|${song.title}`.toLowerCase();
       const cached = cache.get(key);
 
       if (cached) return cached;
-      if (null === cached) throw new Error('No lyrics found for this song');
+      if (null === cached) throw new Error(NOT_FOUND);
 
-      const query = encodeURIComponent(`${cleanTitle(artist)} ${cleanTitle(title)}`);
-      const search = await get(`${API}/search?q=${query}`, {authorization: `Bearer ${token}`});
+      // When LRCLIB is down, Genius still answers, but that answer is not kept: the next try may get timed lines
+      let isLrclibUp = true;
+      const hits = await searchLrclib(song, userAgent).catch(() => {
+        isLrclibUp = false;
 
-      if (search.status >= 400) throw new Error(`Genius: search failed (HTTP ${search.status})`);
+        return [];
+      });
+      const result = fromLrclib(hits, song) ?? (geniusToken ? await fromGenius(geniusToken, song) : null);
 
-      const hits = (JSON.parse(search.body) as {response?: {hits?: Hit[]}}).response?.hits ?? [];
-      const hit = pickHit(hits, artist, title);
-
-      if (!hit) {
-        remember(key, null);
-        throw new Error('No lyrics found for this song');
-      }
-
-      const page = await get(hit.result.url, {'user-agent': 'Mozilla/5.0 (hk agent)'});
-      const lyrics = extractLyrics(page.body);
-
-      if (!lyrics) {
-        remember(key, null);
-        throw new Error('No lyrics on the Genius page');
-      }
-
-      const result: LyricsResult = {
-        title: hit.result.title,
-        artist: hit.result.primary_artist.name,
-        url: hit.result.url,
-        lyrics,
-      };
-
-      remember(key, result);
+      if (isLrclibUp) remember(key, result);
+      if (!result) throw new Error(NOT_FOUND);
 
       return result;
     },

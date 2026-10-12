@@ -56,7 +56,10 @@ const devices: Devices = isMock
               tokensFile: SPOTIFY_TOKENS_FILE,
             })
           : null,
-      lyrics: GENIUS_TOKEN ? createLyrics(GENIUS_TOKEN) : null,
+      lyrics: createLyrics({
+        geniusToken: GENIUS_TOKEN || null,
+        userAgent: `hk-agent/${VERSION} (https://github.com/ValentinMumble/hk)`,
+      }),
     };
 
 const sources = HK_SOURCES.split(',')
@@ -243,16 +246,15 @@ const route = async (
         uptime: Math.round(process.uptime()),
         sources,
         spotify: {configured: null !== devices.spotify, connected: devices.spotify?.connected() ?? false},
-        lyrics: {configured: null !== devices.lyrics},
+        lyrics: {configured: true, genius: Boolean(GENIUS_TOKEN) && !isMock},
       },
     };
   }
 
   if ('lyrics' === root && 'GET' === method && 1 === segments.length) {
-    if (!devices.lyrics) throw new HttpError(404, 'Lyrics are not configured on the agent');
-
     let artist = query.get('artist') ?? '';
     let title = query.get('title') ?? '';
+    let durationMs: number | undefined;
     let trackId: string | null = null;
 
     if (!artist || !title) {
@@ -264,10 +266,11 @@ const route = async (
 
       artist = track.artists.split(',')[0].trim();
       title = track.name;
+      durationMs = track.durationMs;
       trackId = track.id;
     }
 
-    return {body: {trackId, ...(await devices.lyrics.lookup(artist, title))}};
+    return {body: {trackId, ...(await devices.lyrics.lookup({artist, title, durationMs}))}};
   }
 
   if ('spotify' === root && segments.length <= 2) return spotifyRoute(method, second, query, readBody);
@@ -296,6 +299,13 @@ const route = async (
 
   if ('hue' === root) {
     if ('GET' === method && 'lights' === second && 2 === segments.length) return {body: await devices.hue.lights()};
+    if ('GET' === method && 'scenes' === second && 2 === segments.length) return {body: await devices.hue.scenes()};
+
+    if ('POST' === method && 'scenes' === second && 3 === segments.length) {
+      await devices.hue.recallScene(third);
+
+      return {status: 204};
+    }
 
     if ('POST' === method && 'all' === second && 2 === segments.length) {
       await devices.hue.setAll(toHueState(await readBody()));

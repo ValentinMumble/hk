@@ -76,7 +76,7 @@ export const Status = ({settings}: {settings: Settings}) => {
       });
       next.push({
         label: 'Lyrics',
-        value: info.lyrics?.configured ? 'Genius configured' : 'not configured',
+        value: !info.lyrics?.configured ? 'not configured' : info.lyrics.genius ? 'LRCLIB, then Genius' : 'LRCLIB',
         ok: info.lyrics?.configured ?? false,
       });
 

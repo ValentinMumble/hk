@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useRef, useState, type CSSProperties} from 'react';
-import type {Api, Light} from './api';
+import type {Api, HueScene, Light} from './api';
 import {Icon, type IconName} from './Icon';
 import {attempt} from './toast';
 
@@ -55,6 +55,12 @@ const useDebounced = <T extends unknown[]>(callback: (...args: T) => void, delay
   );
 };
 
+/** A scene's name, with its room when another scene has the same name. */
+const sceneLabel = (scene: HueScene, scenes: HueScene[]) =>
+  scene.room && scenes.some(other => other.id !== scene.id && other.name === scene.name)
+    ? `${scene.name} · ${scene.room}`
+    : scene.name;
+
 const lightStyle = (light: Light): CSSProperties =>
   ({'--light': light.color, '--level': light.on ? light.brightness / 100 : 0}) as CSSProperties;
 
@@ -62,6 +68,8 @@ export const Lights = ({api}: {api: Api}) => {
   const [lights, setLights] = useState<Light[]>([]);
   const [brightness, setBrightness] = useState(100);
   const [activeColor, setActiveColor] = useState<string | null>(null);
+  const [scenes, setScenes] = useState<HueScene[]>([]);
+  const [activeScene, setActiveScene] = useState<string | null>(null);
   const [wheelPoint, setWheelPoint] = useState<{x: number; y: number} | null>(null);
   /** A lamp picked with a long press: colours and brightness then go to it alone. */
   const [target, setTarget] = useState<Light | null>(null);
@@ -75,10 +83,22 @@ export const Lights = ({api}: {api: Api}) => {
     refresh();
   }, [refresh]);
 
+  // Scenes are a bonus: when the agent or the bridge cannot list them, the row just stays out
+  useEffect(() => {
+    (async () => {
+      try {
+        setScenes(await api.scenes());
+      } catch {
+        setScenes([]);
+      }
+    })();
+  }, [api]);
+
   const setAccent = (color: string) => document.documentElement.style.setProperty('--accent', color);
 
   const setColor = async (color: string, label = target ? `🌞 ${target.name}` : '🌞 Lights on') => {
     setActiveColor(color);
+    setActiveScene(null);
     setAccent(color);
     await attempt(
       () =>
@@ -94,7 +114,15 @@ export const Lights = ({api}: {api: Api}) => {
 
   const allOff = async () => {
     setActiveColor(null);
+    setActiveScene(null);
     await attempt(() => api.allLights({on: false}), '🌚 Lights off');
+    refresh();
+  };
+
+  const recall = async (scene: HueScene) => {
+    setActiveScene(scene.id);
+    setActiveColor(null);
+    await attempt(() => api.recallScene(scene.id), `✨ ${scene.name}`);
     refresh();
   };
 
@@ -191,6 +219,20 @@ export const Lights = ({api}: {api: Api}) => {
             />
           ))}
         </div>
+        {scenes.length > 0 && (
+          <div className="scenes" role="group" aria-label="Scenes" data-no-swipe>
+            {scenes.map(scene => (
+              <button
+                key={scene.id}
+                type="button"
+                className={`chip ${scene.id === activeScene ? 'on' : ''}`}
+                onClick={() => recall(scene)}
+              >
+                {sceneLabel(scene, scenes)}
+              </button>
+            ))}
+          </div>
+        )}
         <div
           className="wheel"
           role="slider"

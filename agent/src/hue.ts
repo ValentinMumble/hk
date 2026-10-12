@@ -1,7 +1,7 @@
 import {request as httpRequest} from 'node:http';
 import {request as httpsRequest, type RequestOptions} from 'node:https';
 import {hexToXy, miredToHex, xyToHex} from './color.js';
-import type {Hue, HueState, Light} from './types.js';
+import type {Hue, HueScene, HueState, Light} from './types.js';
 
 /** Hue bridge local API (v1). Recent firmware serves it over HTTPS with a self-signed certificate. */
 const TIMEOUT_MS = 5000;
@@ -11,6 +11,16 @@ type RawLight = {
   state: {on: boolean; bri?: number; reachable?: boolean; xy?: [number, number]; ct?: number};
 };
 type BridgeReply = Array<{success?: unknown; error?: {description?: string}}>;
+/** Scenes as the v1 API lists them. "recycle" ones are temporary, made by apps for their own use. */
+export type RawScene = {name: string; type?: string; group?: string; recycle?: boolean};
+export type RawGroup = {name: string};
+
+/** The scenes worth showing, with their room's name, sorted by name. Exported for tests. */
+export const toScenes = (scenes: Record<string, RawScene>, groups: Record<string, RawGroup>): HueScene[] =>
+  Object.entries(scenes)
+    .filter(([, scene]) => !scene.recycle)
+    .map(([id, scene]) => ({id, name: scene.name, room: (scene.group && groups[scene.group]?.name) || null}))
+    .sort((left, right) => left.name.localeCompare(right.name) || (left.room ?? '').localeCompare(right.room ?? ''));
 
 const toLight = ([id, raw]: [string, RawLight]): Light => ({
   id,
@@ -87,6 +97,16 @@ export const createHue = (bridgeUrl: string, username: string): Hue => {
       const reply = check(await call('GET', 'lights')) as Record<string, RawLight>;
 
       return Object.entries(reply).map(toLight);
+    },
+    scenes: async () => {
+      const [scenes, groups] = await Promise.all([call('GET', 'scenes'), call('GET', 'groups')]);
+
+      return toScenes(check(scenes) as Record<string, RawScene>, check(groups) as Record<string, RawGroup>);
+    },
+    // A room scene is recalled through its room, a scene of loose lights through group 0 (every light)
+    recallScene: async id => {
+      const scene = check(await call('GET', `scenes/${encodeURIComponent(id)}`)) as RawScene;
+      check(await call('PUT', `groups/${scene.group ?? '0'}/action`, {scene: id}));
     },
     setAll: async state => {
       check(await call('PUT', 'groups/0/action', toBridgeState(state)));

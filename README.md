@@ -20,10 +20,11 @@ The screenshots come from the agent's mock mode, which fakes every device.
 - **Spotify**: the artwork turns into a disc with a progress ring, and a blurred copy fills the background. The app
   takes its accent colour from the artwork. Tap the disc to play or pause, tap twice to like the song, tap the artist
   to start a song radio. Pick the playing device from the header, set the volume at the bottom.
-- **Lyrics**: the words of the current song, from Genius. They load as soon as the song changes, so they are ready when
-  you open the tab.
-- **Hue**: tap a lamp to switch it on or off, hold it to colour that lamp alone. Colour swatches, a colour wheel, a
-  brightness slider and a big "all off" button.
+- **Lyrics**: the words of the current song. When [LRCLIB](https://lrclib.net) has them time-coded, the line being sung
+  lights up and stays in the middle of the screen. They load as soon as the song changes, so they are ready when you
+  open the tab.
+- **Hue**: tap a lamp to switch it on or off, hold it to colour that lamp alone. The scenes saved in the Hue app, colour
+  swatches, a colour wheel, a brightness slider and a big "all off" button.
 - **HK**: the amp's inputs, volume, mute and power, with an online dot.
 
 Swipe left or right to change tabs (arrow keys on a computer). Added to the iPhone home screen, it opens full screen like
@@ -41,7 +42,7 @@ phone ──HTTPS──▶ web app (static, for example https://hk.vumble.dev)
                       ▼
           agent/ (Node, at home) ──TCP 10025──▶ Harman Kardon amp
                                  ──HTTPS─────▶ Hue bridge
-                                 ──HTTPS─────▶ Spotify and Genius APIs
+                                 ──HTTPS─────▶ Spotify, LRCLIB and Genius APIs
 ```
 
 The amp only speaks a raw TCP protocol on the local network, and the Hue bridge only answers there too, so one small
@@ -62,7 +63,7 @@ deploy your own copy (see [Development](#development)).
   HTTPS page to a plain `http://` address. [Tailscale Funnel](https://tailscale.com/kb/1223/funnel) is free and the
   install script can set it up.
 - Optional: Spotify Premium and your own Spotify developer app, for the Spotify tab.
-- Optional: a Genius API token, for the Lyrics tab.
+- Optional: a Genius API token, to find lyrics that LRCLIB does not have.
 
 ## Setup
 
@@ -155,11 +156,17 @@ any browser and every app just asks the agent. After a fresh flash of the Pi, co
 control through the Spotify API needs Premium. Song radio needs an endpoint that Spotify closed to apps created after
 November 2024; when it is refused, the app says so.
 
-### 6. Lyrics (optional)
+### 6. Lyrics
 
-Create an API client at https://genius.com/api-clients and put its client access token in `agent/.env` as
-`GENIUS_TOKEN`. The Lyrics tab appears once the agent has it. Lyrics only show when Genius has a song with the same
-artist and title, so a song that Genius does not know shows nothing rather than another song's words.
+The Lyrics tab works without any setup. Its words come from [LRCLIB](https://lrclib.net), an open lyrics database that
+needs no key. Time-coded lines are only used when LRCLIB has them for a recording of the same length (within 3 seconds),
+otherwise the plain words show.
+
+For songs LRCLIB does not know, the agent can ask Genius too: create an API client at https://genius.com/api-clients and
+put its client access token in `agent/.env` as `GENIUS_TOKEN`. Genius has no time-coded lines.
+
+Lyrics only show when the source has a song with the same artist and title, so an unknown song shows nothing rather than
+another song's words.
 
 ## Updating the agent
 
@@ -208,6 +215,8 @@ Every route needs `Authorization: Bearer <AGENT_TOKEN>`.
 | POST   | `/hue/all`                | `{"on"?, "color"?: "#hex", "brightness"?: 0-100}` | Every light at once; also `effect`, `alert` and `transition` (seconds)                        |
 | POST   | `/hue/lights/<id>`        | same                                              | One light                                                                                     |
 | POST   | `/hue/lights/<id>/toggle` |                                                   | Flip one light, returns `{on}`                                                                |
+| GET    | `/hue/scenes`             |                                                   | The scenes saved on the bridge, with their room                                               |
+| POST   | `/hue/scenes/<id>`        |                                                   | Recall a scene                                                                                |
 | GET    | `/lyrics`                 |                                                   | Lyrics of the current song, or of `?artist=&title=`                                           |
 | POST   | `/update`                 |                                                   | Install the latest release and restart                                                        |
 

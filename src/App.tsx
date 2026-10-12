@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useMemo, useRef, useState, type TouchEvent} from 'react';
-import {createApi, type AgentInfo} from './api';
+import {createApi, type AgentInfo, type Playhead} from './api';
 import {Icon, type IconName} from './Icon';
 import {Lights} from './Lights';
 import {Lyrics} from './Lyrics';
@@ -35,7 +35,7 @@ export const App = () => {
   const [settings, setSettings] = useState<Settings | null>(loadSettings);
   const [isEditing, setEditing] = useState(false);
   const [info, setInfo] = useState<AgentInfo | null>(null);
-  const [trackId, setTrackId] = useState<string | null>(null);
+  const [playhead, setPlayhead] = useState<Playhead | null>(null);
   const [tab, setTab] = useState<TabKey>(loadTab);
   const touchStart = useRef<{x: number; y: number} | null>(null);
 
@@ -107,7 +107,10 @@ export const App = () => {
     const start = touchStart.current;
     touchStart.current = null;
 
-    if (!start || 'range' === (event.target as HTMLElement).getAttribute?.('type')) return;
+    const target = event.target as HTMLElement;
+
+    // Sliders and sideways-scrolling rows keep their own horizontal drags
+    if (!start || 'range' === target.getAttribute?.('type') || target.closest?.('[data-no-swipe]')) return;
 
     const touch = event.changedTouches[0];
     const deltaX = touch.clientX - start.x;
@@ -146,7 +149,7 @@ export const App = () => {
         </div>
         <div className="tab-panel" hidden={'spotify' !== tab}>
           {info?.spotify.configured ? (
-            <Player api={api} connected={info.spotify.connected} onConnected={loadInfo} onTrack={setTrackId} />
+            <Player api={api} connected={info.spotify.connected} onConnected={loadInfo} onPlayhead={setPlayhead} />
           ) : (
             <section className="panel">
               <p className="status">{info ? 'Spotify is not configured on the agent' : '…'}</p>
@@ -155,7 +158,7 @@ export const App = () => {
         </div>
         {info?.lyrics?.configured && (
           <div className="tab-panel" hidden={'lyrics' !== tab}>
-            <Lyrics api={api} trackId={trackId} />
+            <Lyrics api={api} playhead={playhead} isActive={'lyrics' === tab} />
           </div>
         )}
       </main>

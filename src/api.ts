@@ -8,9 +8,25 @@ export type AgentInfo = {
   build?: {sha: string; date: string} | null;
   uptime?: number;
   spotify: {configured: boolean; connected: boolean};
-  lyrics?: {configured: boolean};
+  lyrics?: {configured: boolean; genius?: boolean};
 };
-export type LyricsResult = {trackId: string | null; title: string; artist: string; url: string; lyrics: string};
+/** One line of time-coded lyrics: when it starts in the song, and its words (empty for a pause). */
+export type LyricsLine = {timeMs: number; text: string};
+export type LyricsResult = {
+  trackId: string | null;
+  title: string;
+  artist: string;
+  source: string;
+  url: string;
+  lyrics: string;
+  /** Time-coded lines for this recording, when the source has them. */
+  synced: LyricsLine[] | null;
+  instrumental: boolean;
+};
+/** Where the player is in the song, as last read: enough to follow it between reads. */
+export type Playhead = {trackId: string | null; progressMs: number; readAt: number; isPlaying: boolean};
+/** A scene saved on the Hue bridge, with its room. */
+export type HueScene = {id: string; name: string; room: string | null};
 export type RepeatState = 'off' | 'track' | 'context';
 export type PlaybackState = {
   isPlaying: boolean;
@@ -94,6 +110,8 @@ export const createApi = ({agentUrl, token}: Settings) => {
     allLights: (state: HueState) => call('POST', '/hue/all', state),
     setLight: (id: string, state: HueState) => call('POST', `/hue/lights/${id}`, state),
     toggleLight: (id: string) => call<{on: boolean}>('POST', `/hue/lights/${id}/toggle`),
+    scenes: () => call<HueScene[]>('GET', '/hue/scenes'),
+    recallScene: (id: string) => call('POST', `/hue/scenes/${encodeURIComponent(id)}`),
     lyrics: () => call<LyricsResult>('GET', '/lyrics'),
     update: () => call<{sha: string; date: string}>('POST', '/update', {}),
     spotify: {
