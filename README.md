@@ -229,5 +229,4 @@ Spotify: `GET /spotify/state`, `devices`, `playlists`, `queue`, `search?q=`, `au
 
 ## License
 
-[MIT](LICENSE). The app icon is the speaker emoji from [Twemoji](https://github.com/jdecked/twemoji), © Twitter, Inc and
-other contributors, licensed under [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+[MIT](LICENSE), except the app icon: it is Apple's speaker emoji, which this license does not cover.
