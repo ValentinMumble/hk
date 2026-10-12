@@ -4,7 +4,7 @@
     cp deploy/dev.vumble.hk-agent.plist ~/Library/LaunchAgents/
     launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.vumble.hk-agent.plist
   Logs: ~/Library/Logs/hk-agent.log
-  Adjust the node path and the working directory to your machine.
+  First replace /Users/you with your home folder, and the node path with the output of `which node`.
 -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -13,19 +13,19 @@
   <string>dev.vumble.hk-agent</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/valentin.dijkstra/.nvm/versions/node/v20.20.1/bin/node</string>
+    <string>/usr/local/bin/node</string>
     <string>--env-file=.env</string>
     <string>dist/index.js</string>
   </array>
   <key>WorkingDirectory</key>
-  <string>/Users/valentin.dijkstra/dev/personal/hk/agent</string>
+  <string>/Users/you/hk/agent</string>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
   <true/>
   <key>StandardOutPath</key>
-  <string>/Users/valentin.dijkstra/Library/Logs/hk-agent.log</string>
+  <string>/Users/you/Library/Logs/hk-agent.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/valentin.dijkstra/Library/Logs/hk-agent.log</string>
+  <string>/Users/you/Library/Logs/hk-agent.log</string>
 </dict>
 </plist>

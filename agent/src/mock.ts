@@ -53,7 +53,7 @@ export const createMockDevices = (): Devices => {
   ];
   const spotifyDevices: SpotifyDevice[] = [
     {id: 'd1', name: 'Volumio', isActive: true, volume: 40},
-    {id: 'd2', name: 'MacMumble', isActive: false, volume: 100},
+    {id: 'd2', name: 'Laptop', isActive: false, volume: 100},
   ];
   const playlists: SpotifyPlaylist[] = [
     {id: 'p1', uri: 'spotify:playlist:p1', name: 'OK', image: null},

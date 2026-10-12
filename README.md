@@ -1,215 +1,233 @@
-# 🔈 HK
+# 🔉 HK
 
-Phone remote for the living room: Spotify, the Harman Kardon amp (HK3700), the Hue lights and the lyrics of what
-plays. Four tabs behind a floating glass tab bar, each laid out to fill an iPhone screen; swipe or use the arrow keys.
+A phone remote for the living room: Spotify, a Harman Kardon amplifier, Philips Hue lights, and the lyrics of the song
+that plays. It is a web app you add to your iPhone home screen, plus a small agent that runs at home, for example on a
+Raspberry Pi.
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/spotify.png" width="200" alt="Spotify tab: the artwork as a disc, play controls and volume" /></td>
+    <td><img src="docs/screenshots/lyrics.png" width="200" alt="Lyrics tab: the words of the current song" /></td>
+    <td><img src="docs/screenshots/hue.png" width="200" alt="Hue tab: lamps, colour swatches, colour wheel and brightness" /></td>
+    <td><img src="docs/screenshots/hk.png" width="200" alt="HK tab: inputs, volume, mute and power" /></td>
+  </tr>
+</table>
+
+The screenshots come from the agent's mock mode, which fakes every device.
+
+## What it does
+
+- **Spotify**: the artwork turns into a disc with a progress ring, and a blurred copy fills the background. The app
+  takes its accent colour from the artwork. Tap the disc to play or pause, tap twice to like the song, tap the artist
+  to start a song radio. Pick the playing device from the header, set the volume at the bottom.
+- **Lyrics**: the words of the current song, from Genius. They load as soon as the song changes, so they are ready when
+  you open the tab.
+- **Hue**: tap a lamp to switch it on or off, hold it to colour that lamp alone. Colour swatches, a colour wheel, a
+  brightness slider and a big "all off" button.
+- **HK**: the amp's inputs, volume, mute and power, with an online dot.
+
+Swipe left or right to change tabs (arrow keys on a computer). Added to the iPhone home screen, it opens full screen like
+a native app.
+
+## How it works
 
 ```
-phone ──HTTPS──▶ hk.vumble.dev (Vercel, static)
+phone ──HTTPS──▶ web app (static, for example https://hk.vumble.dev)
                       │
                       │ fetch + bearer token
                       ▼
             agent URL (Tailscale Funnel, or any HTTPS tunnel)
                       │
                       ▼
-          agent/ (Node, at home) ──TCP 10025──▶ HK3700
+          agent/ (Node, at home) ──TCP 10025──▶ Harman Kardon amp
                                  ──HTTPS─────▶ Hue bridge
+                                 ──HTTPS─────▶ Spotify and Genius APIs
 ```
 
-The amp only speaks a raw TCP protocol on the LAN and the Hue bridge only answers on the LAN, so one small
-process has to run at home. Everything else is static.
+The amp only speaks a raw TCP protocol on the local network, and the Hue bridge only answers there too, so one small
+process has to run at home. Everything else is a static web page.
 
-## Quickstart
+The web app keeps the agent URL and its token in your browser and talks straight to your agent. A hosted copy runs at
+https://hk.vumble.dev and you are welcome to use it: no server of mine sees your token or your requests. You can also
+deploy your own copy (see [Development](#development)).
 
-Everything is deployed: the web app at https://hk.vumble.dev, the agent on the Volumio Pi, reachable at
-`https://hk.tailccebb8.ts.net` through Tailscale Funnel.
+## What you need
 
-**New phone**
+- An always-on machine on your home network that runs Node 14.13 or newer. A Raspberry Pi is plenty: mine runs on the
+  Pi of a [Volumio](https://volumio.com) music player.
+- A Philips Hue bridge.
+- A Harman Kardon amplifier that speaks the network protocol of the AVR 3700 (TCP port 10025). It is only tested with
+  the AVR 3700; other Harman Kardon receivers of the same years may work.
+- A way to give the agent an HTTPS URL, because the web app is served over HTTPS and browsers block calls from an
+  HTTPS page to a plain `http://` address. [Tailscale Funnel](https://tailscale.com/kb/1223/funnel) is free and the
+  install script can set it up.
+- Optional: Spotify Premium and your own Spotify developer app, for the Spotify tab.
+- Optional: a Genius API token, for the Lyrics tab.
 
-1. On the Mac: `agent/deploy/phone-link.sh` (copies the setup link, with the agent URL and the token, to the clipboard;
-   `agent/deploy/phone-link.sh http://192.168.1.13:8787 http://127.0.0.1:5181` makes the local-dev variant).
-2. On the phone: paste it in Safari (Universal Clipboard works from the Mac). The app configures itself and keeps the
-   settings.
-3. Share → Add to Home Screen, from that same page. The home-screen app starts configured too. If it ever asks again,
-   paste the same link into its URL field: it fills both fields.
+## Setup
 
-**Change the agent** (code, `.env`, or after a reflash): `agent/deploy/install-pi.sh volumio@volumio.local`, details
-below.
-
-**Change the web app**: push to `main`, Vercel deploys it.
-
-**Hack locally**: `npm run dev` here and `npm run mock` in `agent/`, then open
-`http://127.0.0.1:5181/#agent=http://localhost:8787&token=mock` (the dev server is on `127.0.0.1`, not `localhost`,
-because Spotify only accepts that loopback form as a redirect host).
-
-## Layout
-
-| Path     | What                                                                                          |
-| -------- | --------------------------------------------------------------------------------------------- |
-| `src/`   | The web app: Vite + React, no UI library. Deployed to Vercel.                                 |
-| `agent/` | The home service: Node 14.13+, zero runtime dependencies. Ignored by Vercel (`.vercelignore`) |
-
-## Agent (runs at home)
+### 1. Configure the agent
 
 ```bash
-cd agent
-cp .env.dist .env     # fill AGENT_TOKEN (openssl rand -hex 24), HK_IP, HUE_URL, HUE_USERNAME
-npm install
-npm run build
-npm start
+git clone https://github.com/ValentinMumble/hk.git
+cd hk/agent
+cp .env.dist .env
 ```
 
-Try it without any device: `npm run mock` (token is `mock`).
+Fill `agent/.env`. Every setting is explained in [`.env.dist`](agent/.env.dist). The required ones:
 
-Routes, all behind `Authorization: Bearer <AGENT_TOKEN>`:
+| Setting        | What                                                                                                                          |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `AGENT_TOKEN`  | The shared secret the app sends. It is the only protection, so make it long: `openssl rand -hex 24`                           |
+| `HK_IP`        | The amp's IP address on your network                                                                                          |
+| `HUE_URL`      | The bridge's address, `https://<ip>` (find the IP with `curl https://discovery.meethue.com/`)                                 |
+| `HUE_USERNAME` | A key created on the bridge with the link-button pairing ([Hue guide](https://developers.meethue.com/develop/get-started-2/)) |
 
-| Method | Path                      | Body                                              | Does                                                                                          |
-| ------ | ------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| GET    | `/`                       |                                                   | `{ok, mock, sources}`                                                                         |
-| POST   | `/hk/<command>`           |                                                   | `on` `off` `sleep` `volume-up` `volume-down` `mute` `play` `pause` `next` `previous` `status` |
-| POST   | `/hk/source`              | `{"source": "TV"}`                                | Select an input                                                                               |
-| GET    | `/hue/lights`             |                                                   | `[{id, name, on, reachable, brightness, hasColor}]`                                           |
-| POST   | `/hue/all`                | `{"on"?, "color"?: "#hex", "brightness"?: 0-100}` | Every light at once (group 0)                                                                 |
-| POST   | `/hue/lights/<id>`        | same                                              | One light                                                                                     |
-| POST   | `/hue/lights/<id>/toggle` |                                                   | Flip one light, returns `{on}`                                                                |
+To try it on your computer first: `npm install && npm run build && npm start`.
 
-Tests: `npm test` (a fake amp checks the TCP protocol, no hardware needed).
+### 2. Install it on a Raspberry Pi
 
-### On the Raspberry Pi, in one go
-
-The agent lives on the Volumio Pi (`volumio.local`, 192.168.1.13) as the systemd service `hk-agent`, started at boot
-and restarted after a crash. Install or update it from the Mac:
+From your computer, with SSH access to the Pi (`ssh-copy-id user@host` once):
 
 ```bash
 agent/deploy/install-pi.sh volumio@volumio.local
 ```
 
-Safe to re-run after any change. It builds here, copies `dist/` and `.env` to `~/hk-agent`, picks a Node
-(`agent/deploy/pick-node.sh`: a private one under `~/hk-agent/node` when an official build runs on the Pi's OS, otherwise
-the system Node; on Volumio 3 that is Volumio's own Node 14, since Raspbian Buster cannot run any Node 18+ build and 14 is
-enough), installs the systemd unit from `agent/deploy/hk-agent.service` (asks the Pi's sudo password once) and checks the
-agent answers.
+It builds the agent on your computer, copies it with your `.env` to `~/hk-agent` on the Pi, and installs a systemd
+service (`hk-agent`) that starts at boot and restarts after a crash. It asks for the Pi's sudo password once, then checks
+that the agent answers. It is safe to run again after any change, and it is all you need after a fresh flash.
 
-On the Pi: `systemctl status hk-agent`, `journalctl -u hk-agent -f`.
+The script picks a Node for the Pi (`agent/deploy/pick-node.sh`): a private copy under `~/hk-agent/node` when an
+official Node build runs on the Pi's system, otherwise the system Node. Older systems such as Raspbian Buster (Volumio 3)
+cannot run Node 18 or newer, so there the agent runs on the system's Node 14.
 
-#### After a fresh flash of the Pi
+On the Pi: `systemctl status hk-agent` and `journalctl -u hk-agent -f`.
 
-1. Flash Volumio, boot it, finish its setup wizard.
-2. Put your SSH key on it once: `ssh-copy-id volumio@volumio.local`.
-3. Make sure `agent/.env` is on the Mac. It is git-ignored here and lives in papyrus like the other `.env` files:
-   `agent/.env` is a symlink to `~/dev/papyrus/hk/agent/.env` (recreate it with
-   `ln -s $HOME/dev/papyrus/hk/agent/.env agent/.env`). It holds the amp IP, the Hue key, the token and `TS_AUTHKEY`.
-4. Run `agent/deploy/install-pi.sh volumio@volumio.local`.
+On a Mac, `agent/deploy/dev.vumble.hk-agent.plist` is a launchd equivalent of the service (edit its paths first).
 
-With `TS_AUTHKEY` set, step 4 also installs Tailscale and opens the Funnel, so nothing else is needed.
+### 3. Give the agent an HTTPS URL
 
-On a Mac, `agent/deploy/dev.vumble.hk-agent.plist` is a launchd equivalent of the service.
+With [Tailscale Funnel](https://tailscale.com/kb/1223/funnel) you get a public HTTPS URL with a real certificate and no
+port forwarding.
 
-### Reaching it from outside
-
-The web app is served over HTTPS, so the agent needs an HTTPS URL too (a page on `https://` cannot call
-`http://192.168.1.13:8787`, browsers block it as mixed content). Easiest: [Tailscale Funnel](https://tailscale.com/kb/1223/funnel)
-on the Pi, which gives a public URL with a real certificate and no port forwarding. Ours is
-`https://hk.tailccebb8.ts.net`.
-The token is the only protection, keep it long.
+In one go: create a reusable auth key in the Tailscale admin console (Settings, then Keys), add it to `agent/.env` as
+`TS_AUTHKEY`, and run the install script again. It installs Tailscale on the Pi, names the machine `TS_HOSTNAME`
+(default `hk`) and opens the Funnel. The first time, Tailscale may ask you to enable Funnel for your tailnet. Your agent
+URL is then `https://hk.<your-tailnet>.ts.net`.
 
 By hand, on the Pi:
 
 ```bash
 curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up                  # prints a login URL, open it once
-sudo tailscale funnel --bg 8787    # the first time it prints a link to enable Funnel on the tailnet
+sudo tailscale up --hostname hk
+sudo tailscale funnel --bg 8787
 tailscale funnel status            # shows the public URL
 ```
 
-In one go: create a reusable auth key in the Tailscale admin console (Settings → Keys), add it to `agent/.env` as
-`TS_AUTHKEY=tskey-auth-…` and run `agent/deploy/install-pi.sh`. Enabling Funnel on the tailnet is a one-time setting
-that survives reinstalls. The node is named `hk` in Tailscale (`TS_HOSTNAME` in `agent/.env`, passed to `tailscale up` by the install script;
-the Pi's own hostname stays `volumio`). After a reflash, remove the old `hk` machine in the admin console first and set the
-hostname again, otherwise the new one is named `hk-1` and the URL changes.
+After a reflash, remove the old machine in the Tailscale admin console before installing again, otherwise the new one
+gets a `-1` suffix and the URL changes. Any other tunnel works too (Cloudflare Tunnel, ngrok): the app only needs a URL.
 
-Then enter the Funnel URL and the token in the app, or open
-`https://hk.vumble.dev/#agent=https://hk.tailccebb8.ts.net&token=<token>` on the phone.
+### 4. Open the app
 
-Any other tunnel works the same way (Cloudflare Tunnel, ngrok), the app only needs a URL.
+Open https://hk.vumble.dev (or your own copy) and enter the agent URL and the token.
 
-## Web app
+To set up a phone without typing, put the agent URL in `agent/.env` as `AGENT_URL` and run
+`agent/deploy/phone-link.sh` on a Mac. It copies a setup link to the clipboard, which holds the URL and the token. Paste
+it in Safari on the phone (Universal Clipboard works from the Mac), then use Share, Add to Home Screen.
+
+The home-screen app keeps its own storage, separate from Safari. If it asks for the settings again, paste the same link
+into its URL field: it fills both fields.
+
+### 5. Connect Spotify (optional)
+
+1. Create an app in the [Spotify developer dashboard](https://developer.spotify.com/dashboard). Add the web app's
+   address as a redirect URI: `https://hk.vumble.dev/` (or your own copy's address), plus `http://127.0.0.1:5181/` for
+   development.
+2. Put its client ID and secret in `agent/.env` as `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`, then run the
+   install script again.
+3. Tap "Connect Spotify" in the app and approve.
+
+The agent keeps one Spotify session for every phone and computer (in `spotify.json` next to `dist/` on the Pi) and
+refreshes it by itself. That matters on iOS: the home-screen app cannot finish a login redirect, so you log in once from
+any browser and every app just asks the agent. After a fresh flash of the Pi, connect again.
+
+`SPOTIFY_DEFAULT_DEVICE` is the Spotify Connect device the agent wakes up when nothing is playing anywhere. Playback
+control through the Spotify API needs Premium. Song radio needs an endpoint that Spotify closed to apps created after
+November 2024; when it is refused, the app says so.
+
+### 6. Lyrics (optional)
+
+Create an API client at https://genius.com/api-clients and put its client access token in `agent/.env` as
+`GENIUS_TOKEN`. The Lyrics tab appears once the agent has it. Lyrics only show when Genius has a song with the same
+artist and title, so a song that Genius does not know shows nothing rather than another song's words.
+
+## Updating the agent
+
+Every push to `main` that touches `agent/` runs `.github/workflows/agent-release.yml`: it tests and builds the agent and
+publishes `agent-dist.tar.gz` as the GitHub release tagged `latest`. In the app, Settings (on the HK tab), then "fetch
+latest build", makes the agent download that release, swap its `dist/` folder and restart. The previous build stays on
+the Pi as `dist.previous`.
+
+The agent updates from `GITHUB_REPO` (default `ValentinMumble/hk`). It runs whatever that repository releases, so point
+it at a repository you trust, such as your own fork. A private repository also needs `GITHUB_TOKEN`, a fine-grained token
+with read access to its contents.
+
+## Development
 
 ```bash
 npm install
-npm run dev        # http://127.0.0.1:5181
-npm run build      # tsc + vite build into dist/
-npm run format
+npm run dev               # web app on http://127.0.0.1:5181
+cd agent && npm run mock  # agent with fake devices on :8787, token "mock"
 ```
 
-On first open the app asks for the agent URL and the token and keeps them in `localStorage`. To set a phone up without
-typing, open `https://hk.vumble.dev/#agent=https://<agent-url>&token=<token>`: the values are stored and removed from
-the URL. The ⋯ button in the footer reopens that screen.
+Then open `http://127.0.0.1:5181/#agent=http://localhost:8787&token=mock`. The dev server uses `127.0.0.1` rather than
+`localhost` because Spotify only accepts that form as a local redirect address. It runs on plain HTTP, so it can also
+talk to a real agent on your network directly.
 
-For local development the dev server runs on plain HTTP, so it can talk to an agent on the LAN directly:
+Other commands: `npm run build` (type check and build into `dist/`), `npm run format`, and `npm test` in `agent/` (a fake
+amp checks the TCP protocol, no hardware needed).
 
-- fake devices: `npm run mock` in `agent/`, then open `http://127.0.0.1:5181/#agent=http://localhost:8787&token=mock`
-- the real Pi: `http://127.0.0.1:5181/#agent=http://192.168.1.13:8787&token=<token from agent/.env>`
+| Path     | What                                                                       |
+| -------- | -------------------------------------------------------------------------- |
+| `src/`   | The web app: Vite, React and TypeScript, no UI library                     |
+| `agent/` | The home service: Node 14.13 or newer, TypeScript, no runtime dependencies |
 
-### Deploy
+To deploy your own copy of the web app, import the repository in [Vercel](https://vercel.com) (framework preset Vite,
+root directory `/`). There is no server and no environment variable to set; `.vercelignore` leaves `agent/` out.
 
-The Vercel project `hk` is Git-connected to `ValentinMumble/hk`: every push to `main` deploys to
-`https://hk.vumble.dev`. There is no server-side configuration and no environment variable on Vercel. To redo it from
-scratch: import the repo in Vercel (framework preset: Vite, root directory `/`) and attach the domain, the wildcard
-`*.vumble.dev` already points to Vercel.
+## Agent API
 
-## Spotify
+Every route needs `Authorization: Bearer <AGENT_TOKEN>`.
 
-Like the old server, the agent holds one Spotify session for every client (tokens in `spotify.json` next to `dist/`
-on the Pi, refreshed automatically). That matters on iOS: the home-screen app cannot finish an OAuth redirect itself,
-so the login happens in any browser once and every client just polls the agent.
+| Method | Path                      | Body                                              | Does                                                                                          |
+| ------ | ------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| GET    | `/`                       |                                                   | Agent info: version, build, uptime, sources, what is configured                               |
+| POST   | `/hk/<command>`           |                                                   | `on` `off` `sleep` `volume-up` `volume-down` `mute` `play` `pause` `next` `previous` `status` |
+| POST   | `/hk/source`              | `{"source": "TV"}`                                | Select an input                                                                               |
+| GET    | `/hue/lights`             |                                                   | Every light with its state and colour                                                         |
+| POST   | `/hue/all`                | `{"on"?, "color"?: "#hex", "brightness"?: 0-100}` | Every light at once; also `effect`, `alert` and `transition` (seconds)                        |
+| POST   | `/hue/lights/<id>`        | same                                              | One light                                                                                     |
+| POST   | `/hue/lights/<id>/toggle` |                                                   | Flip one light, returns `{on}`                                                                |
+| GET    | `/lyrics`                 |                                                   | Lyrics of the current song, or of `?artist=&title=`                                           |
+| POST   | `/update`                 |                                                   | Install the latest release and restart                                                        |
 
-Setup, once:
-
-1. In the [Spotify developer dashboard](https://developer.spotify.com/dashboard), the app needs the redirect URIs
-   `https://hk.vumble.dev/` and `http://127.0.0.1:5181/` (dev). Its client id and secret go in `agent/.env` as
-   `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`, then `agent/deploy/install-pi.sh`.
-2. Tap "Connect Spotify" in the app and approve. After a reflash of the Pi, tap it again.
-
-Gestures on the Spotify tab: one tap on the artwork plays or pauses, two taps like the track (a heart after the title
-shows it is liked), a tap on the artist name starts a song radio (the current track followed by songs like it; Spotify
-closed that endpoint to apps created after November 2024, the agent says so if it is refused).
-
-`SPOTIFY_DEFAULT_DEVICE` (default `Volumio`) is the Spotify Connect device the agent wakes up when a command fails
-because nothing is playing anywhere.
-
-Routes (behind the token): `GET /spotify/state`, `devices`, `playlists`, `search?q=`, `auth-url?redirect=&state=`;
+Spotify: `GET /spotify/state`, `devices`, `playlists`, `queue`, `search?q=`, `auth-url?redirect=&state=`;
 `POST /spotify/play {uri?|contextUri?}`, `pause`, `next`, `previous`, `seek {positionMs}`, `volume {percent}`,
-`shuffle {state}`, `repeat {state}`, `transfer {deviceId, play}`, `authorize {code, redirectUri}`, `logout`.
+`shuffle {state}`, `repeat {state}`, `transfer {deviceId, play}`, `like {trackId, saved}`, `queue {uri}`,
+`radio {trackId}`,
+`authorize {code, redirectUri}`, `logout`.
 
-## Updating the agent without the Mac
+## Notes
 
-Every push to `main` that touches `agent/` runs `.github/workflows/agent-release.yml`: it builds and tests the agent and
-publishes `agent-dist.tar.gz` as the GitHub release tagged `latest`. On the Pi, `POST /update` (the "fetch latest build"
-button in the app's settings) downloads that archive, swaps `dist/` and exits; systemd restarts the agent on the new
-build, and `GET /` then reports its `build` (short commit and date). The repo is private, so the Pi needs
-`GITHUB_TOKEN` in `agent/.env`: a fine-grained token with read access to this repository's contents. Without it the
-button fails with a 404 from GitHub. The previous build is kept as `dist.previous` on the Pi.
+- **Hue**: recent bridge firmware only answers over HTTPS with a self-signed certificate, which the agent accepts. For
+  an old bridge set `HUE_URL=http://<ip>`. Colours go to the bridge as CIE xy values; lights without colour only get
+  on, off and brightness.
+- **Amp**: it closes its network API after a while in standby, and `on` only works when network standby is enabled on
+  the amp. `status` is the only command the amp answers, and the app uses it for the online dot.
+- **Amp inputs**: `HK_SOURCES` lists the inputs shown as buttons, named as the amp names them: `Radio`, `TV`,
+  `Cable Sat`, `Disc`, `Game`, `Aux`, `Network`, ...
 
-## Lyrics
+## License
 
-The Lyrics tab shows the words of the current Spotify track through Genius, like the old server: the Genius API finds the
-song, the song page holds the text. Needs `GENIUS_TOKEN` in `agent/.env` (an API client token from
-https://genius.com/api-clients). Route: `GET /lyrics` (current track) or `GET /lyrics?artist=&title=`. Results are cached
-per track on the agent.
-
-## Hue notes
-
-- Recent bridge firmware only answers over HTTPS with a self-signed certificate. The agent accepts it. For an old bridge
-  set `HUE_URL=http://<ip>`.
-- Find the bridge IP: `curl https://discovery.meethue.com/`.
-- Colours are sent as CIE `xy` (Wide RGB D65 matrix from the Hue docs); lights without colour just get `on` and brightness.
-  The agent also reports each light's current colour (from `xy` or the colour temperature) for the tiles.
-- Hue tab: tap a lamp to toggle it, hold it to colour that lamp alone (the wheel, swatches and brightness then apply to
-  it until its name is tapped in the header). The `/hue/all` and `/hue/lights/<id>` bodies also accept `effect`, `alert`
-  and `transition` (seconds) besides `on`, `color` and `brightness`.
-
-## HK notes
-
-- The amp closes its API after a while in standby, and `on` only works when the amp is in network standby mode.
-  `status` (heart-alive) is the only command that answers; the app uses it for the online dot.
-- Sources are whatever the amp calls them: `Radio`, `TV`, `Cable Sat`, `Disc`, `Game`, `Aux`, `Network`, ...
+[MIT](LICENSE). The app icon is the speaker emoji from [Twemoji](https://github.com/jdecked/twemoji), © Twitter, Inc and
+other contributors, licensed under [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/).
