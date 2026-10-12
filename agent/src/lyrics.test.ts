@@ -90,6 +90,7 @@ describe('parseSynced', () => {
 
 describe('fromLrclib', () => {
   const lrclibHit = (overrides: Partial<LrclibHit>): LrclibHit => ({
+    id: 42,
     trackName: 'Get Lucky',
     artistName: 'Daft Punk',
     duration: 369,
@@ -108,6 +109,7 @@ describe('fromLrclib', () => {
     });
 
     expect(result?.source).toBe('LRCLIB');
+    expect(result?.url).toBe('https://lrclib.net/tracks/42');
     expect(result?.synced).toEqual([{timeMs: 10_000, text: 'Like the legend of the phoenix'}]);
   });
 

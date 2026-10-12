@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useRef, useState, type MouseEvent} from 'react';
-import type {Api, PlaybackState, Playhead, SpotifyDevice} from './api';
+import type {Api, PlaybackState, Playhead, SpotifyDevice, SpotifyPlaylist} from './api';
 import {dominantColor} from './artwork';
 import {Icon} from './Icon';
 import {Marquee} from './Marquee';
@@ -188,6 +188,9 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
       window.setTimeout(refresh, AFTER_ACTION_MS);
     }, label);
 
+  const startRadio = () =>
+    track && act(() => api.spotify.radio(track.id), `📻 Songs like ${splitTitle(track.name).title}`);
+
   const login = async () => {
     setLoggingIn(true);
 
@@ -271,11 +274,29 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
       .catch(() => undefined);
   }, [api]);
 
+  const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
+
+  // The agent puts Liked Songs first among the user's playlists
+  const loadPlaylists = useCallback(async () => {
+    try {
+      setPlaylists(await api.spotify.playlists());
+    } catch {
+      // the menu keeps the list it had
+    }
+  }, [api]);
+
   useEffect(() => {
     if (!connected) return;
 
     loadDevices();
-  }, [connected, loadDevices]);
+    loadPlaylists();
+  }, [connected, loadDevices, loadPlaylists]);
+
+  const playPlaylist = (uri: string) => {
+    const playlist = playlists.find(candidate => candidate.uri === uri);
+
+    if (playlist) act(() => api.spotify.play({contextUri: playlist.uri}), `▶️ ${playlist.name}`);
+  };
 
   const transferTo = (deviceId: string) => {
     const device = devices.find(candidate => candidate.id === deviceId);
@@ -376,9 +397,7 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
             className="artist-button"
             disabled={!track}
             title="Play songs like this one"
-            onClick={() =>
-              track && act(() => api.spotify.radio(track.id), `📻 Songs like ${splitTitle(track.name).title}`)
-            }
+            onClick={startRadio}
           >
             <Marquee className="player-artist">{track?.artists ?? ''}</Marquee>
           </button>
@@ -389,7 +408,16 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
             <span>{formatTime(progress)}</span>
             <span>-{formatTime(Math.max(0, duration - progress))}</span>
           </div>
-          <div className="row">
+          <div className="row transport">
+            <button
+              type="button"
+              className="round small"
+              aria-label="Play songs like this one"
+              disabled={!track}
+              onClick={startRadio}
+            >
+              <Icon name="radio" />
+            </button>
             <button
               type="button"
               className="round"
@@ -409,6 +437,22 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
             <button type="button" className="round" aria-label="Next" onClick={() => act(() => api.spotify.next())}>
               <Icon name="next" />
             </button>
+            <label className="round small select-wrap">
+              <Icon name="list" />
+              <select
+                value=""
+                aria-label="Playlists"
+                onPointerDown={loadPlaylists}
+                onChange={event => playPlaylist(event.target.value)}
+              >
+                <option value="">Playlists…</option>
+                {playlists.map(playlist => (
+                  <option key={playlist.id} value={playlist.uri}>
+                    {playlist.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
           <div className="row volume-row">
             <button type="button" className="step" aria-label="Volume down" onClick={() => stepVolume(-VOLUME_STEP)}>

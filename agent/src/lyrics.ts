@@ -16,6 +16,7 @@ const SYNC_TOLERANCE_S = 3;
 
 export type Hit = {result: {title: string; url: string; primary_artist: {name: string}}};
 export type LrclibHit = {
+  id: number;
   trackName: string;
   artistName: string;
   duration: number;
@@ -123,7 +124,7 @@ export const fromLrclib = (hits: LrclibHit[], {artist, title, durationMs}: Song)
     title: closest.trackName,
     artist: closest.artistName,
     source: 'LRCLIB' as const,
-    url: 'https://lrclib.net',
+    url: `https://lrclib.net/tracks/${closest.id}`,
   };
 
   if (timed?.syncedLyrics) {

@@ -91,6 +91,7 @@ export const createMockDevices = (): Devices => {
     {id: 'd2', name: 'Laptop', isActive: false, volume: 100},
   ];
   const playlists: SpotifyPlaylist[] = [
+    {id: 'liked', uri: 'spotify:user:mock:collection', name: '💚 Liked Songs', image: null},
     {id: 'p1', uri: 'spotify:playlist:p1', name: 'OK', image: null},
     {id: 'p2', uri: 'spotify:playlist:p2', name: 'Discover Weekly', image: null},
   ];

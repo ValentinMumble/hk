@@ -681,6 +681,13 @@ input[type='range'] {
   color: rgba(255, 255, 255, 0.35);
 }
 
+/* radio and the playlists menu sit at the ends of the play controls, on one line even on a phone */
+.player .transport {
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  gap: 0;
+}
+
 .player .round.big.play {
   width: 76px;
   height: 76px;
