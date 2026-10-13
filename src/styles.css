@@ -278,16 +278,6 @@ button:active {
   outline-offset: 3px;
 }
 
-.artist-button {
-  display: block;
-  width: 100%;
-  color: inherit;
-}
-
-.artist-button:disabled {
-  cursor: default;
-}
-
 .swatches {
   display: flex;
   justify-content: space-between;

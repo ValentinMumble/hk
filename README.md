@@ -19,8 +19,8 @@ The screenshots come from the agent's mock mode, which fakes every device.
 
 - **Spotify**: the artwork turns into a disc with a progress ring, and a blurred copy fills the background. The app
   takes its accent colour from the artwork. Tap the disc to play or pause, tap twice to like the song. Beside the play
-  controls, the radio button (or a tap on the artist) plays the song followed by songs like it, and the list button
-  opens your playlists, Liked Songs first. Pick the playing device from the header, set the volume at the bottom.
+  controls, the radio button queues songs like the current one, and the list button opens your playlists, Liked Songs
+  first. Pick the playing device from the header, set the volume at the bottom.
 - **Lyrics**: the words of the current song. When [LRCLIB](https://lrclib.net) has them time-coded, the line being sung
   lights up and stays in the middle of the screen. They load as soon as the song changes, so they are ready when you
   open the tab.
@@ -160,7 +160,7 @@ control through the Spotify API needs Premium.
 Song radio needs a Last.fm API key: Spotify stopped giving recommendations to apps in development mode in November 2024.
 Create one for free at https://www.last.fm/api/account/create and put it in `agent/.env` as `LASTFM_API_KEY`. The agent
 asks Last.fm for songs like the current one (or, for a little-known song, its similar artists), keeps at most two songs
-per artist, finds them on Spotify and plays the current song followed by them.
+per artist, finds them on Spotify and adds up to 20 of them to the queue, after the song that is playing.
 
 ### 6. Lyrics
 

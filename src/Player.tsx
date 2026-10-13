@@ -405,15 +405,7 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
               </span>
             )}
           </Marquee>
-          <button
-            type="button"
-            className="artist-button"
-            disabled={!track || isRadioBusy}
-            title="Queue songs like this one"
-            onClick={startRadio}
-          >
-            <Marquee className="player-artist">{track?.artists ?? ''}</Marquee>
-          </button>
+          <Marquee className="player-artist">{track?.artists ?? ''}</Marquee>
           <div className="seek" onClick={seek} role="progressbar" aria-valuenow={Math.round(ratio * 100)}>
             <div className="seek-fill" style={{width: `${ratio * 100}%`}} />
           </div>
