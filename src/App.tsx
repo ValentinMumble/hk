@@ -8,6 +8,7 @@ import {loadSettings, saveSettings, type Settings} from './settings';
 import {Setup} from './Setup';
 import {Sound} from './Sound';
 import {attempt, Toaster} from './toast';
+import {useLyrics} from './useLyrics';
 
 type TabKey = 'spotify' | 'hk' | 'hue' | 'lyrics';
 
@@ -40,6 +41,8 @@ export const App = () => {
   const touchStart = useRef<{x: number; y: number} | null>(null);
 
   const api = useMemo(() => (settings ? createApi(settings) : null), [settings]);
+  // Loaded here, for the Lyrics tab and for the line under the title on the Spotify tab
+  const lyrics = useLyrics(api, playhead?.trackId ?? null, Boolean(info?.lyrics?.configured));
 
   const loadInfo = useCallback(() => {
     if (!api) return;
@@ -149,7 +152,13 @@ export const App = () => {
         </div>
         <div className="tab-panel" hidden={'spotify' !== tab}>
           {info?.spotify.configured ? (
-            <Player api={api} connected={info.spotify.connected} onConnected={loadInfo} onPlayhead={setPlayhead} />
+            <Player
+              api={api}
+              connected={info.spotify.connected}
+              onConnected={loadInfo}
+              onPlayhead={setPlayhead}
+              lyricLines={lyrics.shown?.synced ?? null}
+            />
           ) : (
             <section className="panel">
               <p className="status">{info ? 'Spotify is not configured on the agent' : '…'}</p>
@@ -158,7 +167,7 @@ export const App = () => {
         </div>
         {info?.lyrics?.configured && (
           <div className="tab-panel" hidden={'lyrics' !== tab}>
-            <Lyrics api={api} playhead={playhead} isActive={'lyrics' === tab} />
+            <Lyrics lyrics={lyrics} playhead={playhead} isActive={'lyrics' === tab} />
           </div>
         )}
       </main>

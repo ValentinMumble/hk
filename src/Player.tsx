@@ -1,9 +1,10 @@
 import {useCallback, useEffect, useRef, useState, type MouseEvent} from 'react';
-import type {Api, PlaybackState, Playhead, SpotifyDevice, SpotifyPlaylist} from './api';
+import type {Api, LyricsLine, PlaybackState, Playhead, SpotifyDevice, SpotifyPlaylist, SpotifyTrack} from './api';
 import {dominantColor} from './artwork';
 import {Icon} from './Icon';
 import {Marquee} from './Marquee';
 import {attempt, toast} from './toast';
+import {currentLine, LEAD_MS} from './useLyrics';
 
 const POLL_MS = 2000;
 const AFTER_ACTION_MS = 400;
@@ -17,6 +18,8 @@ type PlayerProps = {
   connected: boolean;
   onConnected: () => void;
   onPlayhead: (playhead: Playhead) => void;
+  /** The playing song's time-coded lyrics, when there are some: the current line shows under the artist. */
+  lyricLines: LyricsLine[] | null;
 };
 
 const formatTime = (ms: number) => {
@@ -73,7 +76,7 @@ const setBackdrop = (artwork: string | null) => {
   }
 };
 
-export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) => {
+export const Player = ({api, connected, onConnected, onPlayhead, lyricLines}: PlayerProps) => {
   const [state, setState] = useState<PlaybackState | null>(null);
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState<number | null>(null);
@@ -200,6 +203,7 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
       const {queued} = await api.spotify.radio(track.id);
       toast(`📻 ${queued} songs like ${title} queued`);
       window.setTimeout(refresh, AFTER_ACTION_MS);
+      window.setTimeout(loadQueue, AFTER_ACTION_MS);
     });
     setRadioBusy(false);
   };
@@ -305,6 +309,36 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
     loadPlaylists();
   }, [connected, loadDevices, loadPlaylists]);
 
+  // Up next: read again for each new song, after a radio, and when the menu opens
+  const [queue, setQueue] = useState<SpotifyTrack[]>([]);
+  const playingId = state?.track?.id ?? null;
+
+  const loadQueue = useCallback(async () => {
+    try {
+      setQueue(await api.spotify.queue());
+    } catch {
+      // the line keeps what it had
+    }
+  }, [api]);
+
+  useEffect(() => {
+    if (connected && playingId) loadQueue();
+  }, [connected, playingId, loadQueue]);
+
+  /** Spotify cannot jump into its queue, so skip to the song one track at a time. */
+  const skipTo = (index: number) => {
+    const target = queue[index];
+
+    if (!target) return;
+
+    act(
+      async () => {
+        for (let step = 0; step <= index; step += 1) await api.spotify.next();
+      },
+      `⏭️ ${splitTitle(target.name).title}`,
+    );
+  };
+
   const playPlaylist = (uri: string) => {
     const playlist = playlists.find(candidate => candidate.uri === uri);
 
@@ -340,6 +374,8 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
 
   const track = state?.track ?? null;
   const duration = track?.durationMs ?? 0;
+  const lyricIndex = lyricLines ? currentLine(lyricLines, progress + LEAD_MS) : -1;
+  const upNext = queue[0] ?? null;
   const ratio = duration ? Math.min(1, progress / duration) : 0;
 
   return (
@@ -406,11 +442,38 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
             )}
           </Marquee>
           <Marquee className="player-artist">{track?.artists ?? ''}</Marquee>
+          {lyricLines && (
+            <p className="player-lyric">
+              <span key={lyricIndex}>{lyricIndex < 0 ? '' : lyricLines[lyricIndex].text || '♪'}</span>
+            </p>
+          )}
           <div className="seek" onClick={seek} role="progressbar" aria-valuenow={Math.round(ratio * 100)}>
             <div className="seek-fill" style={{width: `${ratio * 100}%`}} />
           </div>
           <div className="player-times">
             <span>{formatTime(progress)}</span>
+            {upNext ? (
+              <label className="up-next select-wrap">
+                <span>
+                  Next · {splitTitle(upNext.name).title} · {upNext.artists}
+                </span>
+                <select
+                  value=""
+                  aria-label="Up next"
+                  onPointerDown={loadQueue}
+                  onChange={event => skipTo(Number(event.target.value))}
+                >
+                  <option value="">Up next…</option>
+                  {queue.map((item, index) => (
+                    <option key={`${item.id}-${index}`} value={index}>
+                      {splitTitle(item.name).title} · {item.artists}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <span className="up-next" />
+            )}
             <span>-{formatTime(Math.max(0, duration - progress))}</span>
           </div>
           <div className="row transport">

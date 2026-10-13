@@ -1,9 +1,8 @@
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {Marquee} from './Marquee';
-import type {Api, LyricsLine, LyricsResult, Playhead} from './api';
+import type {Playhead} from './api';
+import {currentLine, LEAD_MS, type SongLyrics} from './useLyrics';
 
-/** Lines light up a little early: reading takes a moment, and the position is only estimated between reads. */
-const LEAD_MS = 300;
 const TICK_MS = 250;
 /** After a scroll by hand, the lyrics stay where they were put for this long. */
 const MANUAL_SCROLL_MS = 4000;
@@ -11,25 +10,10 @@ const MANUAL_SCROLL_MS = 4000;
 const positionOf = (playhead: Playhead, now: number) =>
   playhead.isPlaying ? playhead.progressMs + now - playhead.readAt : playhead.progressMs;
 
-/** Index of the line playing at `positionMs`, or -1 before the first one. */
-const currentLine = (lines: LyricsLine[], positionMs: number) => {
-  let index = -1;
+type LyricsProps = {lyrics: SongLyrics; playhead: Playhead | null; isActive: boolean};
 
-  while (index + 1 < lines.length && lines[index + 1].timeMs <= positionMs) index += 1;
-
-  return index;
-};
-
-type LyricsProps = {api: Api; playhead: Playhead | null; isActive: boolean};
-
-/**
- * The words of the playing song. The playhead names the song, so a new one loads its lyrics at once, even while the
- * tab is hidden. With time-coded lines, the current one lights up and stays in the middle of the screen.
- */
-export const Lyrics = ({api, playhead, isActive}: LyricsProps) => {
-  const trackId = playhead?.trackId ?? null;
-  const [result, setResult] = useState<LyricsResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+/** The words of the playing song. With time-coded lines, the current one lights up and stays in the middle. */
+export const Lyrics = ({lyrics: {shown, error}, playhead, isActive}: LyricsProps) => {
   const [now, setNow] = useState(() => Date.now());
   const scrollRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<Array<HTMLSpanElement | null>>([]);
@@ -37,35 +21,12 @@ export const Lyrics = ({api, playhead, isActive}: LyricsProps) => {
   const centredLine = useRef(-1);
   const touchedAt = useRef(0);
 
-  const load = useCallback(async () => {
-    try {
-      const next = await api.lyrics();
-      setError(null);
-      setResult(current => {
-        if (current?.trackId && current.trackId === next.trackId) return current;
-
-        scrollRef.current?.scrollTo({top: 0});
-        centredLine.current = -1;
-
-        return next;
-      });
-    } catch (loadError) {
-      const message = loadError instanceof Error ? loadError.message : String(loadError);
-
-      setError(message);
-      // The agent answered (new song without lyrics, nothing playing): the old lyrics are wrong now.
-      // When it is only unreachable, keep them on screen.
-      if ('Agent unreachable' !== message) setResult(null);
-    }
-  }, [api]);
-
+  // A new song starts at the top
   useEffect(() => {
-    setError(null);
-    load();
-  }, [load, trackId]);
+    scrollRef.current?.scrollTo({top: 0});
+    centredLine.current = -1;
+  }, [shown]);
 
-  // While the new song's lyrics are on their way, show the loader rather than the previous song's
-  const shown = result && (!trackId || result.trackId === trackId) ? result : null;
   const synced = shown?.synced ?? null;
 
   // The clock only runs while time-coded lines are on screen

@@ -659,6 +659,40 @@ input[type='range'] {
   color: rgba(255, 255, 255, 0.6);
 }
 
+/* up next, between the elapsed and remaining times; a tap opens the queue */
+.up-next {
+  flex: 1;
+  min-width: 0;
+  margin: 0 12px;
+  text-align: center;
+}
+
+.up-next span {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* the line being sung, under the artist: room for two lines is kept so the player does not move */
+.player-lyric {
+  height: 2.6em;
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.85rem;
+  line-height: 1.3;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.player-lyric span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  animation: fade 300ms ease;
+}
+
 .player button {
   color: #fff;
 }
