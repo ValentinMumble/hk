@@ -199,9 +199,10 @@ export const createMockDevices = (): Devices => {
       },
       radio: async trackId => {
         console.log(`[mock] Spotify radio from ${trackId}`);
-        playback.isPlaying = true;
+        // The real radio takes a few seconds to find and queue its songs
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-        return 49;
+        return 20;
       },
       devices: async () => spotifyDevices.map(device => ({...device, isActive: device.id === playback.device?.id})),
       playlists: async () => playlists,

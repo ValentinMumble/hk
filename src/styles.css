@@ -919,6 +919,18 @@ input[type='range'] {
   animation: spin 900ms linear infinite;
 }
 
+/* the radio button pulses while the agent finds and queues songs */
+.round.busy svg {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

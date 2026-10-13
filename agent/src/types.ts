@@ -94,7 +94,7 @@ export type Spotify = {
   /** Upcoming tracks, as Spotify reports them. */
   queue(): Promise<SpotifyTrack[]>;
   addToQueue(uri: string): Promise<void>;
-  /** Play the track followed by songs like it. Resolves with how many were queued. */
+  /** Queue songs like the track after the current one. Resolves with how many were queued. */
   radio(trackId: string): Promise<number>;
   devices(): Promise<SpotifyDevice[]>;
   playlists(): Promise<SpotifyPlaylist[]>;

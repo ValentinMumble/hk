@@ -14,6 +14,8 @@ const TIMEOUT_MS = 8000;
 const REFRESH_MARGIN_MS = 30_000;
 /** Radio songs are looked up on Spotify this many at a time, to stay clear of its rate limit. */
 const SEARCH_BATCH = 6;
+/** Songs a radio adds to the queue: one request each, so a few seconds in all. */
+const RADIO_SIZE = 20;
 
 export const SPOTIFY_SCOPES = [
   'user-read-playback-state',
@@ -304,7 +306,8 @@ export const createSpotify = ({clientId, clientSecret, defaultDevice, tokensFile
     const seed = (await api('GET', `/tracks/${trackId}`)) as RawTrack;
     const artist = seed.artists?.[0]?.name ?? '';
     const title = withoutVersionNotes(seed.name);
-    const songs = pickRadioSongs(await source(artist, title), {artist, title});
+    // A few more than needed, for the songs Spotify does not have
+    const songs = pickRadioSongs(await source(artist, title), {artist, title}, {max: RADIO_SIZE + 4});
     const uris: string[] = [];
 
     for (let start = 0; start < songs.length; start += SEARCH_BATCH) {
@@ -412,13 +415,14 @@ export const createSpotify = ({clientId, clientSecret, defaultDevice, tokensFile
     },
     radio: async trackId => {
       const seedUri = `spotify:track:${trackId}`;
-      const uris = (similarSongs ? await similarUris(trackId, similarSongs) : await recommendedUris(trackId)).filter(
-        uri => uri !== seedUri,
-      );
+      const uris = (similarSongs ? await similarUris(trackId, similarSongs) : await recommendedUris(trackId))
+        .filter(uri => uri !== seedUri)
+        .slice(0, RADIO_SIZE);
 
       if (!uris.length) throw new SpotifyError(404, 'No similar songs found');
 
-      await withDevice(() => api('PUT', '/me/player/play', {body: {uris: [seedUri, ...uris]}}));
+      // Queued after the current song, which keeps playing; one at a time so they come in order of likeness
+      for (const uri of uris) await withDevice(() => api('POST', '/me/player/queue', {query: {uri}}));
 
       return uris.length;
     },

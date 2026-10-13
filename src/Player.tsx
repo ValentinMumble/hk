@@ -3,7 +3,7 @@ import type {Api, PlaybackState, Playhead, SpotifyDevice, SpotifyPlaylist} from 
 import {dominantColor} from './artwork';
 import {Icon} from './Icon';
 import {Marquee} from './Marquee';
-import {attempt} from './toast';
+import {attempt, toast} from './toast';
 
 const POLL_MS = 2000;
 const AFTER_ACTION_MS = 400;
@@ -188,8 +188,21 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
       window.setTimeout(refresh, AFTER_ACTION_MS);
     }, label);
 
-  const startRadio = () =>
-    track && act(() => api.spotify.radio(track.id), `📻 Songs like ${splitTitle(track.name).title}`);
+  const [isRadioBusy, setRadioBusy] = useState(false);
+
+  // Finding and queueing the songs takes a few seconds: the button pulses meanwhile and further taps are ignored
+  const startRadio = async () => {
+    if (!track || isRadioBusy) return;
+
+    const title = splitTitle(track.name).title;
+    setRadioBusy(true);
+    await attempt(async () => {
+      const {queued} = await api.spotify.radio(track.id);
+      toast(`📻 ${queued} songs like ${title} queued`);
+      window.setTimeout(refresh, AFTER_ACTION_MS);
+    });
+    setRadioBusy(false);
+  };
 
   const login = async () => {
     setLoggingIn(true);
@@ -395,8 +408,8 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
           <button
             type="button"
             className="artist-button"
-            disabled={!track}
-            title="Play songs like this one"
+            disabled={!track || isRadioBusy}
+            title="Queue songs like this one"
             onClick={startRadio}
           >
             <Marquee className="player-artist">{track?.artists ?? ''}</Marquee>
@@ -411,9 +424,10 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
           <div className="row transport">
             <button
               type="button"
-              className="round small"
-              aria-label="Play songs like this one"
-              disabled={!track}
+              className={`round small ${isRadioBusy ? 'busy' : ''}`}
+              aria-label="Queue songs like this one"
+              aria-busy={isRadioBusy}
+              disabled={!track || isRadioBusy}
               onClick={startRadio}
             >
               <Icon name="radio" />
