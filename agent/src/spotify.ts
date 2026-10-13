@@ -1,5 +1,7 @@
 import {existsSync, readFileSync, unlinkSync, writeFileSync} from 'node:fs';
 import {request as httpsRequest} from 'node:https';
+import {pickRadioSongs, type SimilarSong} from './lastfm.js';
+import {withoutVersionNotes} from './lyrics.js';
 import type {PlaybackState, Spotify, SpotifyDevice, SpotifyTrack} from './types.js';
 
 /**
@@ -10,6 +12,8 @@ const ACCOUNTS = 'https://accounts.spotify.com';
 const API = 'https://api.spotify.com/v1';
 const TIMEOUT_MS = 8000;
 const REFRESH_MARGIN_MS = 30_000;
+/** Radio songs are looked up on Spotify this many at a time, to stay clear of its rate limit. */
+const SEARCH_BATCH = 6;
 
 export const SPOTIFY_SCOPES = [
   'user-read-playback-state',
@@ -137,9 +141,16 @@ export const toPlaybackState = (raw: unknown): PlaybackState => {
   };
 };
 
-type Config = {clientId: string; clientSecret: string; defaultDevice?: string; tokensFile: string};
+type Config = {
+  clientId: string;
+  clientSecret: string;
+  defaultDevice?: string;
+  tokensFile: string;
+  /** Songs like a given one, for the radio (Last.fm). Without it the radio asks Spotify's own recommendations. */
+  similarSongs?: (artist: string, title: string) => Promise<SimilarSong[]>;
+};
 
-export const createSpotify = ({clientId, clientSecret, defaultDevice, tokensFile}: Config): Spotify => {
+export const createSpotify = ({clientId, clientSecret, defaultDevice, tokensFile, similarSongs}: Config): Spotify => {
   let tokens: Tokens | null = null;
 
   try {
@@ -261,6 +272,50 @@ export const createSpotify = ({clientId, clientSecret, defaultDevice, tokensFile
   };
 
   /** Player commands fail with NO_ACTIVE_DEVICE when nothing plays; wake the default device and retry once. */
+  /** Spotify's own recommendations, closed to apps in development mode since November 2024. */
+  const recommendedUris = async (trackId: string) => {
+    try {
+      const reply = (await api('GET', '/recommendations', {query: {seed_tracks: trackId, limit: 49}})) as {
+        tracks?: RawTrack[];
+      };
+
+      return (reply.tracks ?? []).map(track => track.uri);
+    } catch (error) {
+      if (error instanceof SpotifyError && (404 === error.status || 403 === error.status)) {
+        throw new SpotifyError(error.status, 'Song radio needs LASTFM_API_KEY on the agent');
+      }
+      throw error;
+    }
+  };
+
+  /** The Spotify track for a song, or null when Spotify does not have it. */
+  const findTrack = async ({artist, title}: SimilarSong): Promise<string | null> => {
+    const quoted = (value: string) => `"${value.replace(/"/g, '')}"`;
+    const q = title ? `track:${quoted(title)} artist:${quoted(artist)}` : `artist:${quoted(artist)}`;
+    const reply = (await api('GET', '/search', {query: {q, type: 'track', limit: 1}})) as {
+      tracks?: {items?: RawTrack[]};
+    };
+
+    return reply.tracks?.items?.[0]?.uri ?? null;
+  };
+
+  /** Songs like the track from the similar-songs source, found on Spotify; the ones it lacks are skipped. */
+  const similarUris = async (trackId: string, source: NonNullable<Config['similarSongs']>) => {
+    const seed = (await api('GET', `/tracks/${trackId}`)) as RawTrack;
+    const artist = seed.artists?.[0]?.name ?? '';
+    const title = withoutVersionNotes(seed.name);
+    const songs = pickRadioSongs(await source(artist, title), {artist, title});
+    const uris: string[] = [];
+
+    for (let start = 0; start < songs.length; start += SEARCH_BATCH) {
+      const batch = songs.slice(start, start + SEARCH_BATCH);
+      const found = await Promise.all(batch.map(async song => (await findTrack(song).catch(() => null)) ?? ''));
+      uris.push(...found.filter(Boolean));
+    }
+
+    return [...new Set(uris)];
+  };
+
   const withDevice = async (action: () => Promise<unknown>) => {
     try {
       await action();
@@ -356,22 +411,16 @@ export const createSpotify = ({clientId, clientSecret, defaultDevice, tokensFile
       await api('POST', '/me/player/queue', {query: {uri}});
     },
     radio: async trackId => {
-      let reply: {tracks?: RawTrack[]};
+      const seedUri = `spotify:track:${trackId}`;
+      const uris = (similarSongs ? await similarUris(trackId, similarSongs) : await recommendedUris(trackId)).filter(
+        uri => uri !== seedUri,
+      );
 
-      try {
-        reply = (await api('GET', '/recommendations', {query: {seed_tracks: trackId, limit: 49}})) as typeof reply;
-      } catch (error) {
-        // Spotify closed this endpoint to apps created after November 2024
-        if (error instanceof SpotifyError && (404 === error.status || 403 === error.status)) {
-          throw new SpotifyError(error.status, 'Song radio is not available to this Spotify app');
-        }
-        throw error;
-      }
+      if (!uris.length) throw new SpotifyError(404, 'No similar songs found');
 
-      const uris = [`spotify:track:${trackId}`, ...(reply.tracks ?? []).map(track => track.uri)];
-      await withDevice(() => api('PUT', '/me/player/play', {body: {uris}}));
+      await withDevice(() => api('PUT', '/me/player/play', {body: {uris: [seedUri, ...uris]}}));
 
-      return uris.length - 1;
+      return uris.length;
     },
     search: async query => {
       const reply = (await api('GET', '/search', {query: {q: query, type: 'track', limit: 10}})) as {

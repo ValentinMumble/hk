@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import {createServer, type IncomingMessage} from 'node:http';
 import {HK_COMMANDS, sendCommand} from './hk.js';
 import {createHue} from './hue.js';
+import {createLastfm} from './lastfm.js';
 import {createLyrics} from './lyrics.js';
 import {createMockDevices} from './mock.js';
 import {createSpotify} from './spotify.js';
@@ -21,6 +22,7 @@ const {
   SPOTIFY_DEFAULT_DEVICE = '',
   SPOTIFY_TOKENS_FILE = 'spotify.json',
   GENIUS_TOKEN = '',
+  LASTFM_API_KEY = '',
   GITHUB_REPO = 'ValentinMumble/hk',
   GITHUB_TOKEN = '',
   MOCK = '',
@@ -31,6 +33,8 @@ const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.
   .version;
 const APP_DIR = new URL('..', import.meta.url).pathname;
 const BUILD = readBuild(new URL('.', import.meta.url).pathname);
+/** How the agent introduces itself to LRCLIB and Last.fm, which ask for it. */
+const USER_AGENT = `hk-agent/${VERSION} (https://github.com/ValentinMumble/hk)`;
 
 if (!AGENT_TOKEN) {
   console.error('AGENT_TOKEN is required');
@@ -54,11 +58,12 @@ const devices: Devices = isMock
               clientSecret: SPOTIFY_CLIENT_SECRET,
               defaultDevice: SPOTIFY_DEFAULT_DEVICE || undefined,
               tokensFile: SPOTIFY_TOKENS_FILE,
+              similarSongs: LASTFM_API_KEY ? createLastfm(LASTFM_API_KEY, USER_AGENT).similarSongs : undefined,
             })
           : null,
       lyrics: createLyrics({
         geniusToken: GENIUS_TOKEN || null,
-        userAgent: `hk-agent/${VERSION} (https://github.com/ValentinMumble/hk)`,
+        userAgent: USER_AGENT,
       }),
     };
 

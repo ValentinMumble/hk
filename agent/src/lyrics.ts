@@ -1,4 +1,4 @@
-import {request as httpsRequest} from 'node:https';
+import {get} from './http.js';
 import type {Lyrics, LyricsLine, LyricsResult, Song} from './types.js';
 
 /**
@@ -8,7 +8,6 @@ import type {Lyrics, LyricsLine, LyricsResult, Song} from './types.js';
  */
 const LRCLIB_API = 'https://lrclib.net/api';
 const GENIUS_API = 'https://api.genius.com';
-const TIMEOUT_MS = 10_000;
 const CACHE_SIZE = 10;
 const NOT_FOUND = 'No lyrics found for this song';
 /** Time-coded lines only line up with a recording of the same length, give or take this. */
@@ -37,7 +36,7 @@ const normalize = (value: string) =>
     .trim();
 
 /** Version notes such as "(feat. X)" or "- 2011 Remaster", which confuse searches and comparisons. */
-const withoutVersionNotes = (value: string) =>
+export const withoutVersionNotes = (value: string) =>
   value
     .replace(/\s*[([].*?(feat|\bwith\b|\bft\b|remaster|version|edit|mix|live|mono|stereo|deluxe).*?[)\]]/gi, '')
     .replace(/\s+-\s+.*(remaster|version|edit|mix|live|mono|stereo|deluxe).*$/i, '')
@@ -151,33 +150,6 @@ export const fromLrclib = (hits: LrclibHit[], {artist, title, durationMs}: Song)
 
   return words ? {...base, lyrics: words, synced: null, instrumental: false} : null;
 };
-
-const get = (
-  url: string,
-  headers: Record<string, string> = {},
-  redirects = 3,
-): Promise<{status: number; body: string}> =>
-  new Promise((resolve, reject) => {
-    const request = httpsRequest(url, {method: 'GET', timeout: TIMEOUT_MS, headers}, response => {
-      const location = response.headers.location;
-
-      if (location && response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && redirects > 0) {
-        response.resume();
-        resolve(get(new URL(location, url).toString(), headers, redirects - 1));
-
-        return;
-      }
-
-      let body = '';
-      response.setEncoding('utf8');
-      response.on('data', chunk => (body += chunk));
-      response.on('end', () => resolve({status: response.statusCode ?? 0, body}));
-    });
-
-    request.on('timeout', () => request.destroy(new Error('timed out')));
-    request.on('error', error => reject(new Error(`${new URL(url).host}: ${error.message}`)));
-    request.end();
-  });
 
 const decodeEntities = (value: string) =>
   value
