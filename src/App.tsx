@@ -41,7 +41,7 @@ export const App = () => {
   const touchStart = useRef<{x: number; y: number} | null>(null);
 
   const api = useMemo(() => (settings ? createApi(settings) : null), [settings]);
-  // Loaded here, for the Lyrics tab and for the line under the title on the Spotify tab
+  // Loaded here, so a new song's lyrics are ready before the Lyrics tab opens
   const lyrics = useLyrics(api, playhead?.trackId ?? null, Boolean(info?.lyrics?.configured));
 
   const loadInfo = useCallback(() => {
@@ -152,13 +152,7 @@ export const App = () => {
         </div>
         <div className="tab-panel" hidden={'spotify' !== tab}>
           {info?.spotify.configured ? (
-            <Player
-              api={api}
-              connected={info.spotify.connected}
-              onConnected={loadInfo}
-              onPlayhead={setPlayhead}
-              lyricLines={lyrics.shown?.synced ?? null}
-            />
+            <Player api={api} connected={info.spotify.connected} onConnected={loadInfo} onPlayhead={setPlayhead} />
           ) : (
             <section className="panel">
               <p className="status">{info ? 'Spotify is not configured on the agent' : '…'}</p>
