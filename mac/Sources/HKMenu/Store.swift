@@ -14,12 +14,17 @@ final class Store {
     private(set) var playbackReadAt = Date()
     private(set) var lyrics: LyricsResult?
     private(set) var lyricsError: String?
+    /// The song the lyrics (or their error) belong to, so a song without lyrics is not asked again on each open.
+    private var lyricsTrackId: String?
     var volume = 50.0
     var sources: [String] = []
     var scenes: [HueScene] = []
     /// The last error, cleared by the next success.
     var message: String?
     var isEditingSettings = false
+    /// The device list, read each time it is opened (devices come and go); nil while it loads.
+    private(set) var devices: [SpotifyDevice]?
+    private(set) var isPickingDevice = false
 
     init() {
         Task { await loadLists() }
@@ -38,6 +43,7 @@ final class Store {
     // MARK: Reads
 
     func panelOpened() {
+        isPickingDevice = false
         Task {
             await refreshPlayback()
             if sources.isEmpty || scenes.isEmpty { await loadLists() }
@@ -54,14 +60,17 @@ final class Store {
             if let device = state.device { volume = Double(device.volume) }
             message = nil
 
-            // Lyrics are read again only for a new song
-            if lyrics?.trackId == nil || lyrics?.trackId != state.track?.id { await loadLyrics() }
+            // Lyrics are read again only for a new song, starting from an empty view
+            if state.track?.id != lyricsTrackId {
+                clearLyrics()
+                await loadLyrics(for: state.track?.id)
+            }
         } catch {
             message = error.localizedDescription
         }
     }
 
-    private func loadLyrics() async {
+    private func loadLyrics(for trackId: String?) async {
         guard let agent else { return }
 
         do {
@@ -72,6 +81,14 @@ final class Store {
             lyrics = nil
             lyricsError = error.localizedDescription
         }
+        lyricsTrackId = trackId
+    }
+
+    /// Back to the loader, for a new song: the previous song's words never show under it.
+    private func clearLyrics() {
+        lyrics = nil
+        lyricsError = nil
+        lyricsTrackId = nil
     }
 
     private func loadLists() async {
@@ -135,6 +152,30 @@ final class Store {
         }
     }
 
+    func toggleDevicePicker() {
+        isPickingDevice.toggle()
+        guard isPickingDevice, let agent else { return }
+
+        devices = nil
+        Task {
+            do {
+                devices = try await agent.get("/spotify/devices")
+            } catch {
+                devices = []
+                message = error.localizedDescription
+            }
+        }
+    }
+
+    /// Moves Spotify to the device, playing if it was playing.
+    func transfer(to device: SpotifyDevice) {
+        isPickingDevice = false
+        guard device.id != playback?.device?.id else { return }
+
+        let play = playback?.isPlaying ?? false
+        run(refreshing: true) { try await $0.post("/spotify/transfer", json(["deviceId": device.id, "play": play])) }
+    }
+
     func togglePlay() {
         let isPlaying = playback?.isPlaying ?? false
         playback?.isPlaying = !isPlaying
@@ -142,10 +183,12 @@ final class Store {
     }
 
     func next() {
+        clearLyrics()
         run(refreshing: true) { try await $0.post("/spotify/next") }
     }
 
     func previous() {
+        clearLyrics()
         run(refreshing: true) { try await $0.post("/spotify/previous") }
     }
 

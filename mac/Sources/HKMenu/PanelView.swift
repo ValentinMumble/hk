@@ -91,6 +91,39 @@ struct PanelView: View {
                 volumeStep("speaker.wave.3.fill", help: "Spotify volume up", by: 5)
             }
             .disabled(store.playback?.device == nil)
+
+            devicePicker
+        }
+    }
+
+    /// The playing device; a click lists the others to move Spotify there.
+    private var devicePicker: some View {
+        VStack(spacing: 8) {
+            Button(action: store.toggleDevicePicker) {
+                HStack(spacing: 4) {
+                    Label(store.playback?.device?.name ?? "No device", systemImage: "hifispeaker")
+                    Image(systemName: store.isPickingDevice ? "chevron.up" : "chevron.down").font(.caption2)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.borderless)
+            .help("Spotify device")
+            .frame(maxWidth: .infinity)
+
+            if store.isPickingDevice {
+                if let devices = store.devices {
+                    if devices.isEmpty {
+                        Text("No device found").font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        buttonGrid(devices, id: \.id, label: { ($0.isActive ? "✓ " : "") + $0.name }) {
+                            store.transfer(to: $0)
+                        }
+                    }
+                } else {
+                    ProgressView().controlSize(.small)
+                }
+            }
         }
     }
 

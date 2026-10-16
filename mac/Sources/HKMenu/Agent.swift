@@ -83,6 +83,12 @@ struct LyricsResult: Decodable, Sendable {
     let instrumental: Bool
 }
 
+struct SpotifyDevice: Decodable, Sendable, Identifiable {
+    let id: String
+    let name: String
+    let isActive: Bool
+}
+
 /// The agent's info: only the amp's inputs are needed here.
 struct AgentInfo: Decodable, Sendable {
     let sources: [String]

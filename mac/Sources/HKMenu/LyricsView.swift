@@ -36,6 +36,8 @@ struct LyricsView: View {
                     ProgressView().controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
+            // A fresh view for each song, so its lyrics start at the top
+            .id(lyrics?.trackId)
             .frame(height: 260)
 
             if let lyrics, let url = URL(string: lyrics.url) {
