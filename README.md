@@ -204,9 +204,30 @@ amp checks the TCP protocol, no hardware needed).
 | -------- | -------------------------------------------------------------------------- |
 | `src/`   | The web app: Vite, React and TypeScript, no UI library                     |
 | `agent/` | The home service: Node 14.13 or newer, TypeScript, no runtime dependencies |
+| `mac/`   | The Mac menu bar remote: SwiftUI, no dependencies                          |
 
 To deploy your own copy of the web app, import the repository in [Vercel](https://vercel.com) (framework preset Vite,
-root directory `/`). There is no server and no environment variable to set; `.vercelignore` leaves `agent/` out.
+root directory `/`). There is no server and no environment variable to set; `.vercelignore` leaves `agent/` and `mac/`
+out.
+
+## Mac menu bar app
+
+`mac/` holds a small native remote for the Mac menu bar: a click on the speaker icon opens a panel with the Spotify
+controls and volume, the amp's volume, mute, power and inputs, and the Hue scenes with "All off". At the bottom, the
+lyrics follow the song line by line when they are time-coded. It talks to the same agent and reads nothing in the
+background: the playback is read when the panel opens (with the lyrics, for a new song), the amp inputs and Hue scenes
+when the app starts, and the rest only on a click. Beside the icon, the menu bar also shows the download speed and, when a
+charger is plugged in, its wattage, read from the Mac itself every 5 seconds.
+
+Build and install it in `~/Applications` (needs Xcode or its command line tools, macOS 26 or newer for its Liquid Glass look):
+
+```bash
+mac/build.sh --open
+```
+
+On first launch it asks for the agent: paste the setup link from `agent/deploy/phone-link.sh`, or the URL and the token.
+The URL is kept in the app's settings and the token in the login keychain. The gear button reopens these settings, with
+"Open at login" and "Quit".
 
 ## Agent API
 
