@@ -2,78 +2,100 @@ import AppKit
 import ServiceManagement
 import SwiftUI
 
-/// The panel under the menu bar icon: Spotify, then the amp, the lights and the lyrics.
+/// The panel under the menu bar icon: one card each for Spotify, the amp, the lights and the lyrics.
 struct PanelView: View {
     @Bindable var store: Store
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(spacing: 10) {
             if store.isEditingSettings || !store.isConfigured {
                 SettingsView(store: store)
             } else {
                 spotify
-                Divider()
                 amp
-                Divider()
                 lights
-                Divider()
                 LyricsView(
                     lyrics: store.lyrics, error: store.lyricsError, playback: store.playback,
-                    readAt: store.playbackReadAt)
-            }
-
-            if let message = store.message {
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .lineLimit(2)
+                    readAt: store.playbackReadAt, accent: store.accent
+                )
+                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+                .background(.quinary, in: cardShape)
             }
         }
-        .padding(14)
-        .frame(width: 300)
+        .padding(12)
+        .frame(width: 340)
+        .overlay(alignment: .top) { banner }
+        .animation(.easeInOut(duration: 0.25), value: store.message)
+        // An error shows for a few seconds, then goes
+        .task(id: store.message) {
+            guard store.message != nil else { return }
+
+            try? await Task.sleep(for: .seconds(4))
+            store.message = nil
+        }
         // The panel becomes key each time it opens: the one moment the playback is read
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             store.panelOpened()
         }
     }
 
+    private let cardShape = RoundedRectangle(cornerRadius: 18, style: .continuous)
+
+    @ViewBuilder private var banner: some View {
+        if let message = store.message {
+            Label(message, systemImage: "exclamationmark.triangle.fill")
+                .font(.caption)
+                .lineLimit(2)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .glassEffect(.regular.tint(.red.opacity(0.35)), in: .capsule)
+                .padding(.top, 6)
+                .padding(.horizontal, 16)
+                .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+
+    // MARK: Spotify
+
     private var spotify: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
+        VStack(spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
                 // Only brings the Spotify app forward: opening the song itself would start it over
                 Button {
                     if let spotify = URL(string: "spotify:") { NSWorkspace.shared.open(spotify) }
                 } label: {
-                    HStack(spacing: 10) {
-                        artwork
-                        VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 12) {
+                        coverView
+                        VStack(alignment: .leading, spacing: 3) {
                             Text(store.playback?.track?.name ?? "Nothing playing")
                                 .font(.headline)
-                                .lineLimit(1)
-                            Text(store.playback?.track?.artists ?? store.playback?.device?.name ?? " ")
+                                .lineLimit(2)
+                            Text(store.playback?.track?.artists ?? " ")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help("Open Spotify")
-                Spacer()
-                glassIcon("gearshape", help: "Settings", size: 12) { store.isEditingSettings = true }
+                glassIcon("gearshape", help: "Settings", size: 11) { store.isEditingSettings = true }
             }
 
-            GlassEffectContainer(spacing: 14) {
-                HStack(spacing: 14) {
+            GlassEffectContainer(spacing: 16) {
+                HStack(spacing: 16) {
                     glassIcon("backward.fill", help: "Previous", action: store.previous)
                     Button(action: store.togglePlay) {
                         Image(systemName: store.playback?.isPlaying == true ? "pause.fill" : "play.fill")
-                            .font(.system(size: 20))
-                            .frame(width: 36, height: 36)
+                            .font(.system(size: 22))
+                            .frame(width: 40, height: 40)
                     }
                     .buttonStyle(.glassProminent)
                     .buttonBorderShape(.circle)
+                    .tint(accent)
                     .help("Play or pause")
                     glassIcon("forward.fill", help: "Next", action: store.next)
                     glassIcon(store.playback?.track?.saved == true ? "heart.fill" : "heart", help: "Like",
@@ -81,73 +103,103 @@ struct PanelView: View {
                         .disabled(store.playback?.track == nil)
                 }
             }
-            .frame(maxWidth: .infinity)
 
-            HStack {
-                volumeStep("speaker.fill", help: "Spotify volume down", by: -5)
-                Slider(value: $store.volume, in: 0...100) { isEditing in
-                    if !isEditing { store.commitVolume() }
-                }
-                volumeStep("speaker.wave.3.fill", help: "Spotify volume up", by: 5)
-            }
-            .disabled(store.playback?.device == nil)
-
-            devicePicker
-        }
-    }
-
-    /// The playing device; a click lists the others to move Spotify there.
-    private var devicePicker: some View {
-        VStack(spacing: 8) {
-            Button(action: store.toggleDevicePicker) {
-                HStack(spacing: 4) {
-                    Label(store.playback?.device?.name ?? "No device", systemImage: "hifispeaker")
-                    Image(systemName: store.isPickingDevice ? "chevron.up" : "chevron.down").font(.caption2)
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.borderless)
-            .help("Spotify device")
-            .frame(maxWidth: .infinity)
-
-            if store.isPickingDevice {
-                if let devices = store.devices {
-                    if devices.isEmpty {
-                        Text("No device found").font(.caption).foregroundStyle(.secondary)
-                    } else {
-                        buttonGrid(devices, id: \.id, label: { ($0.isActive ? "✓ " : "") + $0.name }) {
-                            store.transfer(to: $0)
-                        }
+            VStack(spacing: 6) {
+                HStack {
+                    volumeStep("speaker.fill", help: "Spotify volume down", by: -5)
+                    Slider(value: $store.volume, in: 0...100) { isEditing in
+                        if !isEditing { store.commitVolume() }
                     }
-                } else {
-                    ProgressView().controlSize(.small)
+                    .tint(accent)
+                    volumeStep("speaker.wave.3.fill", help: "Spotify volume up", by: 5)
+                }
+                .disabled(store.playback?.device == nil)
+
+                deviceMenu
+            }
+        }
+        .padding(14)
+        .background { coverBackdrop }
+        .clipShape(cardShape)
+    }
+
+    /// The cover's colour, or grey when the cover has none.
+    private var accent: Color { store.accent ?? .gray }
+
+    /// The cover, blurred behind the Spotify card, like the web app's backdrop.
+    private var coverBackdrop: some View {
+        ZStack {
+            Rectangle().fill(.quinary)
+            if let cover = store.cover {
+                Image(nsImage: cover)
+                    .resizable()
+                    .scaledToFill()
+                    .scaleEffect(1.6)
+                    .blur(radius: 36)
+                    .opacity(0.55)
+            }
+        }
+        .animation(.easeInOut(duration: 0.4), value: store.cover)
+    }
+
+    private var coverView: some View {
+        Group {
+            if let cover = store.cover {
+                Image(nsImage: cover).resizable().scaledToFill()
+            } else {
+                Image(systemName: "music.note")
+                    .font(.system(size: 24))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.quaternary)
+            }
+        }
+        .frame(width: 68, height: 68)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
+    }
+
+    /// The playing device as a native menu of the others; the list is read when the pointer reaches it.
+    private var deviceMenu: some View {
+        Menu {
+            if store.devices.isEmpty {
+                Text("Looking for devices…")
+            }
+            ForEach(store.devices) { device in
+                Button {
+                    store.transfer(to: device)
+                } label: {
+                    if device.isActive {
+                        Label(device.name, systemImage: "checkmark")
+                    } else {
+                        Text(device.name)
+                    }
                 }
             }
+        } label: {
+            Label(store.playback?.device?.name ?? "No device", systemImage: "hifispeaker")
+        }
+        .menuStyle(.button)
+        .buttonStyle(.borderless)
+        .fixedSize()
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .tint(.secondary)
+        .help("Spotify device")
+        .onHover { isInside in
+            if isInside { store.loadDevices() }
         }
     }
 
-    private var artwork: some View {
-        AsyncImage(url: store.playback?.track?.artwork.flatMap(URL.init(string:))) { image in
-            image.resizable().scaledToFill()
-        } placeholder: {
-            Image(systemName: "music.note")
-                .font(.system(size: 20))
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(.quaternary)
-        }
-        .frame(width: 48, height: 48)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-    }
+    // MARK: Amp
 
     private var amp: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 16) {
-                Text("🔊 HK").font(.headline)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                sectionLabel("🔊 HK")
                 Spacer()
-                glassIcon("speaker.slash.fill", help: "Mute", size: 12) { store.amp("mute") }
-                glassIcon("power", help: "Amp off", size: 12) { store.amp("off") }
+                glassIcon("speaker.slash.fill", help: "Mute", size: 11) { store.amp("mute") }
+                glassIcon("power", help: "Amp off", size: 11) { store.amp("off") }
             }
 
             HStack(spacing: 8) {
@@ -165,13 +217,18 @@ struct PanelView: View {
                 .help("Amp volume up")
             }
             .buttonStyle(.glassProminent)
+            .tint(.gray)
             .controlSize(.large)
 
             if !store.sources.isEmpty {
                 buttonGrid(store.sources, id: \.self, label: { $0 }) { store.ampSource($0) }
             }
         }
+        .padding(12)
+        .background(.quinary, in: cardShape)
     }
+
+    // MARK: Lights
 
     /// The everyday scene, shown big beside "Off": the bridge's scene named "Main".
     private var mainScene: HueScene? {
@@ -179,8 +236,8 @@ struct PanelView: View {
     }
 
     private var lights: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("💡 Hue").font(.headline)
+        VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("💡 Hue")
 
             HStack(spacing: 8) {
                 if let mainScene {
@@ -206,6 +263,8 @@ struct PanelView: View {
                 buttonGrid(otherScenes, id: \.id, label: sceneLabel) { store.recall($0) }
             }
         }
+        .padding(12)
+        .background(.quinary, in: cardShape)
     }
 
     /// A scene's name, with its room when another scene has the same name.
@@ -217,23 +276,26 @@ struct PanelView: View {
         return "\(scene.name) · \(room)"
     }
 
-    private func volumeStep(_ symbol: String, help: String, by delta: Double) -> some View {
-        Button {
-            store.stepVolume(by: delta)
-        } label: {
-            Image(systemName: symbol).foregroundStyle(.secondary)
-        }
-        .buttonStyle(.borderless)
-        .help(help)
+    // MARK: Pieces
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
     }
 
-    /// A round glass button around an icon.
+    private func volumeStep(_ symbol: String, help: String, by delta: Double) -> some View {
+        glassIcon(symbol, help: help, size: 13) { store.stepVolume(by: delta) }
+    }
+
+    /// A round, neutral glass button around an icon.
     private func glassIcon(_ symbol: String, help: String, size: CGFloat = 15, action: @escaping () -> Void)
         -> some View
     {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: size))
+                .foregroundStyle(.primary)
                 .frame(width: size + 14, height: size + 14)
         }
         .buttonStyle(.glass)
@@ -245,7 +307,7 @@ struct PanelView: View {
         _ items: [Item], id: KeyPath<Item, ID>, label: @escaping (Item) -> String, action: @escaping (Item) -> Void
     ) -> some View {
         GlassEffectContainer(spacing: 6) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: 6)], spacing: 6) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 6)], spacing: 6) {
                 ForEach(items, id: id) { item in
                     Button {
                         action(item)

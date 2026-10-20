@@ -1,5 +1,6 @@
-import Foundation
+import AppKit
 import Observation
+import SwiftUI
 
 /// Everything the panel shows and does. Nothing runs in the background: the playback is read when the panel opens,
 /// the amp inputs and Hue scenes when the app starts or the settings change, and the rest only on a click.
@@ -22,9 +23,13 @@ final class Store {
     /// The last error, cleared by the next success.
     var message: String?
     var isEditingSettings = false
-    /// The device list, read each time it is opened (devices come and go); nil while it loads.
-    private(set) var devices: [SpotifyDevice]?
-    private(set) var isPickingDevice = false
+    /// Spotify Connect devices for the device menu, read lightly: they come and go.
+    private(set) var devices: [SpotifyDevice] = []
+    @ObservationIgnored private var devicesReadAt: Date?
+    /// The playing song's cover, and its main colour (nil for a grey cover) for the play button, slider and lyrics.
+    private(set) var cover: NSImage?
+    private(set) var accent: Color?
+    @ObservationIgnored private var coverAddress: String?
 
     init() {
         Task { await loadLists() }
@@ -43,10 +48,10 @@ final class Store {
     // MARK: Reads
 
     func panelOpened() {
-        isPickingDevice = false
         Task {
             await refreshPlayback()
             if sources.isEmpty || scenes.isEmpty { await loadLists() }
+            if devices.isEmpty { loadDevices() }
         }
     }
 
@@ -59,6 +64,11 @@ final class Store {
             playbackReadAt = Date()
             if let device = state.device { volume = Double(device.volume) }
             message = nil
+
+            if state.track?.artwork != coverAddress {
+                coverAddress = state.track?.artwork
+                Task { await loadCover(state.track?.artwork) }
+            }
 
             // Lyrics are read again only for a new song, starting from an empty view
             if state.track?.id != lyricsTrackId {
@@ -89,6 +99,22 @@ final class Store {
         lyrics = nil
         lyricsError = nil
         lyricsTrackId = nil
+    }
+
+    /// Loads the cover once per song and takes its main colour, for the header's backdrop and the accent.
+    private func loadCover(_ address: String?) async {
+        guard let address, let url = URL(string: address) else {
+            cover = nil
+            accent = nil
+            return
+        }
+
+        guard let (data, _) = try? await URLSession.shared.data(from: url), let image = NSImage(data: data),
+            address == coverAddress
+        else { return }
+
+        cover = image
+        accent = CoverColor.accent(of: image).map { Color(nsColor: $0) }
     }
 
     private func loadLists() async {
@@ -152,24 +178,19 @@ final class Store {
         }
     }
 
-    func toggleDevicePicker() {
-        isPickingDevice.toggle()
-        guard isPickingDevice, let agent else { return }
+    /// Reads the devices for the menu, at most every few seconds: on the first panel open and when the pointer
+    /// reaches the menu, so the list is fresh by the time it opens.
+    func loadDevices() {
+        guard let agent, Date().timeIntervalSince(devicesReadAt ?? .distantPast) > 5 else { return }
 
-        devices = nil
+        devicesReadAt = Date()
         Task {
-            do {
-                devices = try await agent.get("/spotify/devices")
-            } catch {
-                devices = []
-                message = error.localizedDescription
-            }
+            if let list: [SpotifyDevice] = try? await agent.get("/spotify/devices") { devices = list }
         }
     }
 
     /// Moves Spotify to the device, playing if it was playing.
     func transfer(to device: SpotifyDevice) {
-        isPickingDevice = false
         guard device.id != playback?.device?.id else { return }
 
         let play = playback?.isPlaying ?? false

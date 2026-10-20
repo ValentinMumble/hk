@@ -7,6 +7,8 @@ struct LyricsView: View {
     let error: String?
     let playback: PlaybackState?
     let readAt: Date
+    /// The cover's colour, for the line being sung.
+    let accent: Color?
 
     /// Lines light up a little early: reading takes a moment, and the position is only estimated.
     private static let leadMs = 300.0
@@ -19,11 +21,13 @@ struct LyricsView: View {
                         note("Instrumental")
                     } else if let lines = lyrics.synced, !lines.isEmpty {
                         TimelineView(.periodic(from: .now, by: 0.25)) { context in
-                            SyncedLyrics(lines: lines, current: currentLine(lines, at: position(at: context.date)))
+                            SyncedLyrics(
+                                lines: lines, current: currentLine(lines, at: position(at: context.date)), accent: accent)
                         }
                     } else {
                         ScrollView {
                             Text(lyrics.lyrics)
+                                .padding(.vertical, 20)
                                 .font(.title3)
                                 .multilineTextAlignment(.center)
                                 .frame(maxWidth: .infinity)
@@ -38,10 +42,18 @@ struct LyricsView: View {
             }
             // A fresh view for each song, so its lyrics start at the top
             .id(lyrics?.trackId)
-            .frame(height: 260)
+            .frame(height: 160)
+            // The lines fade out at the top and bottom edges
+            .mask {
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0), .init(color: .black, location: 0.18),
+                        .init(color: .black, location: 0.82), .init(color: .clear, location: 1),
+                    ], startPoint: .top, endPoint: .bottom)
+            }
 
             if let lyrics, let url = URL(string: lyrics.url) {
-                Link("\(lyrics.source) ↗", destination: url).font(.caption)
+                Link("\(lyrics.source) ↗", destination: url).font(.caption).foregroundStyle(.secondary)
             }
         }
     }
@@ -71,6 +83,7 @@ struct LyricsView: View {
 private struct SyncedLyrics: View {
     let lines: [LyricsResult.Line]
     let current: Int
+    let accent: Color?
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -79,13 +92,13 @@ private struct SyncedLyrics: View {
                     ForEach(lines.indices, id: \.self) { index in
                         Text(lines[index].text.isEmpty ? "♪" : lines[index].text)
                             .font(.title3.weight(index == current ? .semibold : .regular))
-                            .foregroundStyle(index == current ? .primary : .secondary)
+                            .foregroundStyle(index == current ? AnyShapeStyle(accent ?? .primary) : AnyShapeStyle(.secondary))
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
                             .id(index)
                     }
                 }
-                .padding(.vertical, 110)
+                .padding(.vertical, 60)
             }
             .onChange(of: current, initial: true) { _, line in
                 guard line >= 0 else { return }
