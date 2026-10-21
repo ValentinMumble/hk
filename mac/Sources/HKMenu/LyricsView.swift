@@ -22,7 +22,8 @@ struct LyricsView: View {
                     } else if let lines = lyrics.synced, !lines.isEmpty {
                         TimelineView(.periodic(from: .now, by: 0.25)) { context in
                             SyncedLyrics(
-                                lines: lines, current: currentLine(lines, at: position(at: context.date)), accent: accent)
+                                lines: lines, current: currentLine(lines, at: position(at: context.date)),
+                                accent: accent)
                         }
                     } else {
                         ScrollView {
@@ -90,7 +91,9 @@ private struct SyncedLyrics: View {
                     ForEach(lines.indices, id: \.self) { index in
                         Text(lines[index].text.isEmpty ? "♪" : lines[index].text)
                             .font(.title3.weight(index == current ? .semibold : .regular))
-                            .foregroundStyle(index == current ? AnyShapeStyle(accent ?? .primary) : AnyShapeStyle(.secondary))
+                            .foregroundStyle(
+                                index == current ? AnyShapeStyle(accent ?? .primary) : AnyShapeStyle(.secondary)
+                            )
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
                             .id(index)

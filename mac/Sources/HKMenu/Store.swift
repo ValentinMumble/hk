@@ -231,7 +231,8 @@ final class Store {
             defer { isRadioBusy = false }
 
             do {
-                let reply = try await agent.post("/spotify/radio", json(["trackId": track.id]), reading: RadioReply.self)
+                let reply = try await agent.post(
+                    "/spotify/radio", json(["trackId": track.id]), reading: RadioReply.self)
                 notice = "📻 \(reply.queued) songs like \(track.name) queued"
                 message = nil
             } catch {

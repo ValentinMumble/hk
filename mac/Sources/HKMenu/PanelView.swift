@@ -91,9 +91,11 @@ struct PanelView: View {
                 .help("Open Spotify")
                 VStack(spacing: 8) {
                     glassIcon("gearshape", help: "Settings", size: 11) { store.isEditingSettings = true }
-                    glassIcon(store.playback?.track?.saved == true ? "heart.fill" : "heart", help: "Like", size: 11,
-                        action: store.toggleLike)
-                        .disabled(store.playback?.track == nil)
+                    glassIcon(
+                        store.playback?.track?.saved == true ? "heart.fill" : "heart", help: "Like", size: 11,
+                        action: store.toggleLike
+                    )
+                    .disabled(store.playback?.track == nil)
                 }
             }
 

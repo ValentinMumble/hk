@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"agent/src/**/*.ts\" index.html",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"agent/src/**/*.ts\" index.html"
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"agent/src/**/*.ts\" index.html",
+    "format:mac": "xcrun swift-format format --recursive mac/Sources --in-place"
   },
   "dependencies": {
     "react": "^19.0.0",
