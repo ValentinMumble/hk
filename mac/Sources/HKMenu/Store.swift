@@ -2,8 +2,9 @@ import AppKit
 import Observation
 import SwiftUI
 
-/// Everything the panel shows and does. Nothing runs in the background: the playback is read when the panel opens,
-/// the amp inputs and Hue scenes when the app starts or the settings change, and the rest only on a click.
+/// Everything the panel shows and does. The playback (with its cover and lyrics) and the devices are read every 20
+/// seconds in the background and again when the panel opens, so it opens on fresh data; the amp inputs and Hue scenes
+/// when the app starts or the settings change, and the rest only on a click.
 @MainActor
 @Observable
 final class Store {
@@ -31,8 +32,18 @@ final class Store {
     private(set) var accent: Color?
     @ObservationIgnored private var coverAddress: String?
 
+    /// A few Spotify calls a minute, far under its limit (the web app reads every 2 seconds while open).
+    private static let prefetchInterval: Duration = .seconds(20)
+
     init() {
         Task { await loadLists() }
+        Task { [weak self] in
+            while let self {
+                await self.refreshPlayback()
+                self.loadDevices()
+                try? await Task.sleep(for: Self.prefetchInterval)
+            }
+        }
     }
 
     private var agent: Agent? {
