@@ -26,13 +26,14 @@ struct PanelView: View {
         .padding(12)
         .frame(width: 340)
         .overlay(alignment: .top) { banner }
-        .animation(.easeInOut(duration: 0.25), value: store.message)
-        // An error shows for a few seconds, then goes
-        .task(id: store.message) {
-            guard store.message != nil else { return }
+        .animation(.easeInOut(duration: 0.25), value: [store.message, store.notice])
+        // An error or a notice shows for a few seconds, then goes
+        .task(id: [store.message, store.notice]) {
+            guard store.message != nil || store.notice != nil else { return }
 
             try? await Task.sleep(for: .seconds(4))
             store.message = nil
+            store.notice = nil
         }
         // The panel becomes key each time it opens: the one moment the playback is read
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
@@ -44,16 +45,22 @@ struct PanelView: View {
 
     @ViewBuilder private var banner: some View {
         if let message = store.message {
-            Label(message, systemImage: "exclamationmark.triangle.fill")
-                .font(.caption)
-                .lineLimit(2)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .glassEffect(.regular.tint(.red.opacity(0.35)), in: .capsule)
-                .padding(.top, 6)
-                .padding(.horizontal, 16)
-                .transition(.move(edge: .top).combined(with: .opacity))
+            bannerText(Label(message, systemImage: "exclamationmark.triangle.fill"), tint: .red.opacity(0.35))
+        } else if let notice = store.notice {
+            bannerText(Text(notice), tint: nil)
         }
+    }
+
+    private func bannerText(_ content: some View, tint: Color?) -> some View {
+        content
+            .font(.caption)
+            .lineLimit(2)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .glassEffect(.regular.tint(tint), in: .capsule)
+            .padding(.top, 6)
+            .padding(.horizontal, 16)
+            .transition(.move(edge: .top).combined(with: .opacity))
     }
 
     // MARK: Spotify
@@ -82,11 +89,19 @@ struct PanelView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Open Spotify")
-                glassIcon("gearshape", help: "Settings", size: 11) { store.isEditingSettings = true }
+                VStack(spacing: 8) {
+                    glassIcon("gearshape", help: "Settings", size: 11) { store.isEditingSettings = true }
+                    glassIcon(store.playback?.track?.saved == true ? "heart.fill" : "heart", help: "Like", size: 11,
+                        action: store.toggleLike)
+                        .disabled(store.playback?.track == nil)
+                }
             }
+
+            SeekBar(playback: store.playback, readAt: store.playbackReadAt, accent: accent, onSeek: store.seek)
 
             GlassEffectContainer(spacing: 16) {
                 HStack(spacing: 16) {
+                    radioButton
                     glassIcon("backward.fill", help: "Previous", action: store.previous)
                     Button(action: store.togglePlay) {
                         Image(systemName: store.playback?.isPlaying == true ? "pause.fill" : "play.fill")
@@ -98,9 +113,7 @@ struct PanelView: View {
                     .tint(accent)
                     .help("Play or pause")
                     glassIcon("forward.fill", help: "Next", action: store.next)
-                    glassIcon(store.playback?.track?.saved == true ? "heart.fill" : "heart", help: "Like",
-                        action: store.toggleLike)
-                        .disabled(store.playback?.track == nil)
+                    playlistMenu
                 }
             }
 
@@ -157,6 +170,51 @@ struct PanelView: View {
         .frame(width: 68, height: 68)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
+    }
+
+    /// Queues songs like this one; spins while the agent finds them.
+    private var radioButton: some View {
+        Button(action: store.startRadio) {
+            Group {
+                if store.isRadioBusy {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: "dot.radiowaves.left.and.right").font(.system(size: 13))
+                }
+            }
+            .foregroundStyle(.primary)
+            .frame(width: 27, height: 27)
+        }
+        .buttonStyle(.glass)
+        .buttonBorderShape(.circle)
+        .disabled(store.playback?.track == nil || store.isRadioBusy)
+        .help("Queue songs like this one")
+    }
+
+    /// Plays a playlist or Liked Songs; the list is read when the pointer reaches it.
+    private var playlistMenu: some View {
+        Menu {
+            if store.playlists.isEmpty {
+                Text("Loading playlists…")
+            }
+            ForEach(store.playlists) { playlist in
+                Button(playlist.name) { store.play(playlist) }
+            }
+        } label: {
+            Image(systemName: "music.note.list")
+                .font(.system(size: 13))
+                .foregroundStyle(.primary)
+                .frame(width: 27, height: 27)
+        }
+        .menuStyle(.button)
+        .menuIndicator(.hidden)
+        .buttonStyle(.glass)
+        .buttonBorderShape(.circle)
+        .fixedSize()
+        .help("Playlists")
+        .onHover { isInside in
+            if isInside { store.loadPlaylists() }
+        }
     }
 
     /// The playing device as a native menu of the others; the list is read when the pointer reaches it.

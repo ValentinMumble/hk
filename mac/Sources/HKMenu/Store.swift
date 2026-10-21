@@ -23,10 +23,17 @@ final class Store {
     var scenes: [HueScene] = []
     /// The last error, cleared by the next success.
     var message: String?
+    /// A short confirmation, like the number of songs a radio queued.
+    var notice: String?
     var isEditingSettings = false
     /// Spotify Connect devices for the device menu, read lightly: they come and go.
     private(set) var devices: [SpotifyDevice] = []
     @ObservationIgnored private var devicesReadAt: Date?
+    /// The user's playlists, Liked Songs first, for the playlists menu.
+    private(set) var playlists: [SpotifyPlaylist] = []
+    @ObservationIgnored private var playlistsReadAt: Date?
+    /// A radio takes a few seconds to find and queue its songs.
+    private(set) var isRadioBusy = false
     /// The playing song's cover, and its main colour (nil for a grey cover) for the play button, slider and lyrics.
     private(set) var cover: NSImage?
     private(set) var accent: Color?
@@ -63,6 +70,7 @@ final class Store {
             await refreshPlayback()
             if sources.isEmpty || scenes.isEmpty { await loadLists() }
             if devices.isEmpty { loadDevices() }
+            if playlists.isEmpty { loadPlaylists() }
         }
     }
 
@@ -198,6 +206,45 @@ final class Store {
         Task {
             if let list: [SpotifyDevice] = try? await agent.get("/spotify/devices") { devices = list }
         }
+    }
+
+    /// Reads the playlists for the menu on the first panel open and when the pointer reaches it, at most once a minute.
+    func loadPlaylists() {
+        guard let agent, Date().timeIntervalSince(playlistsReadAt ?? .distantPast) > 60 else { return }
+
+        playlistsReadAt = Date()
+        Task {
+            if let list: [SpotifyPlaylist] = try? await agent.get("/spotify/playlists") { playlists = list }
+        }
+    }
+
+    func play(_ playlist: SpotifyPlaylist) {
+        run(refreshing: true) { try await $0.post("/spotify/play", json(["contextUri": playlist.uri])) }
+    }
+
+    /// Queues songs like the playing one, found by the agent through Last.fm.
+    func startRadio() {
+        guard let agent, let track = playback?.track, !isRadioBusy else { return }
+
+        isRadioBusy = true
+        Task {
+            defer { isRadioBusy = false }
+
+            do {
+                let reply = try await agent.post("/spotify/radio", json(["trackId": track.id]), reading: RadioReply.self)
+                notice = "📻 \(reply.queued) songs like \(track.name) queued"
+                message = nil
+            } catch {
+                message = error.localizedDescription
+            }
+        }
+    }
+
+    /// Jumps in the song, moving the local clock at once so the bar and lyrics follow without waiting for a read.
+    func seek(to positionMs: Int) {
+        playback?.progressMs = positionMs
+        playbackReadAt = Date()
+        run { try await $0.post("/spotify/seek", json(["positionMs": positionMs])) }
     }
 
     /// Moves Spotify to the device, playing if it was playing.

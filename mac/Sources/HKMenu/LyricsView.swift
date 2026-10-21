@@ -68,9 +68,7 @@ struct LyricsView: View {
     private func position(at date: Date) -> Double {
         guard let playback else { return 0 }
 
-        let elapsed = playback.isPlaying ? date.timeIntervalSince(readAt) * 1000 : 0
-
-        return Double(playback.progressMs) + elapsed + Self.leadMs
+        return playback.positionMs(at: date, readAt: readAt) + Self.leadMs
     }
 
     /// Index of the line playing at `positionMs`, or -1 before the first one.

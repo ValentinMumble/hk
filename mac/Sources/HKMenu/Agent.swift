@@ -17,6 +17,11 @@ struct Agent: Sendable {
         _ = try await send("POST", path, body: body)
     }
 
+    /// A POST whose reply is read.
+    func post<Value: Decodable & Sendable>(_ path: String, _ body: Data, reading: Value.Type) async throws -> Value {
+        try JSONDecoder().decode(Value.self, from: try await send("POST", path, body: body))
+    }
+
     private func send(_ method: String, _ path: String, body: Data?) async throws -> Data {
         var request = URLRequest(url: baseURL.appending(path: path), timeoutInterval: 15)
         request.httpMethod = method
@@ -58,14 +63,20 @@ struct PlaybackState: Decodable, Sendable {
         let artists: String
         /// Album cover, about 300 px.
         let artwork: String?
+        let durationMs: Int
         var saved: Bool
     }
 
     var isPlaying: Bool
     /// Where the song was when the agent read it.
-    let progressMs: Int
+    var progressMs: Int
     let device: Device?
     var track: Track?
+
+    /// Where the song is at `date`, counting on from the read at `readAt` while it plays.
+    func positionMs(at date: Date, readAt: Date) -> Double {
+        Double(progressMs) + (isPlaying ? date.timeIntervalSince(readAt) * 1000 : 0)
+    }
 }
 
 /// The playing song's lyrics. `synced` holds time-coded lines when LRCLIB has them for this recording.
@@ -87,6 +98,18 @@ struct SpotifyDevice: Decodable, Sendable, Identifiable {
     let id: String
     let name: String
     let isActive: Bool
+}
+
+/// A playlist for the playlists menu; the agent lists Liked Songs first.
+struct SpotifyPlaylist: Decodable, Sendable, Identifiable {
+    let id: String
+    let uri: String
+    let name: String
+}
+
+/// How many songs a radio queued.
+struct RadioReply: Decodable, Sendable {
+    let queued: Int
 }
 
 /// The agent's info: only the amp's inputs are needed here.
