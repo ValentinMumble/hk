@@ -1,2 +1,6 @@
-agent
+# The agent and the Mac app are not part of the website, except the agent's types, which the web app imports
+agent/*
+!agent/src
+agent/src/*
+!agent/src/types.ts
 mac
