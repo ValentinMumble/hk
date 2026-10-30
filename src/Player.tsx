@@ -178,7 +178,11 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
     }
 
     dominantColor(artwork)
-      .then(color => document.documentElement.style.setProperty('--accent', color))
+      .then(color =>
+        color
+          ? document.documentElement.style.setProperty('--accent', color)
+          : document.documentElement.style.removeProperty('--accent'),
+      )
       .catch(() => undefined);
   }, [state?.track?.artwork]);
 

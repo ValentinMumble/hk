@@ -68,20 +68,22 @@ export const Lyrics = ({lyrics: {shown, error}, playhead, isActive}: LyricsProps
 
   return (
     <section className="panel lyrics-panel">
-      <header className="panel-header">
+      <header className="panel-header lyrics-header">
         <h2>Lyrics</h2>
+        <div className="track">
+          {shown && (
+            <>
+              <Marquee className="track-name">{shown.title}</Marquee>
+              <Marquee className="track-artist">{shown.artist}</Marquee>
+            </>
+          )}
+        </div>
         {shown && (
           <a className="status" href={shown.url} target="_blank" rel="noreferrer">
             {shown.source} ↗
           </a>
         )}
       </header>
-      {shown && (
-        <div className="track">
-          <Marquee className="track-name">{shown.title}</Marquee>
-          <Marquee className="track-artist">{shown.artist}</Marquee>
-        </div>
-      )}
       {!shown && !error ? (
         <div className="loader" role="status" aria-label="Finding lyrics">
           <span className="spinner" />
@@ -91,33 +93,37 @@ export const Lyrics = ({lyrics: {shown, error}, playhead, isActive}: LyricsProps
       ) : shown.instrumental ? (
         <p className="status">🎻 Instrumental</p>
       ) : synced ? (
-        <div className="lyrics synced" ref={scrollRef} onTouchStart={markTouched} onWheel={markTouched}>
-          {synced.map((line, index) => (
-            <span
-              key={index}
-              ref={element => {
-                lineRefs.current[index] = element;
-              }}
-              className={`line ${index === current ? 'current' : ''}`}
-            >
-              {line.text || '♪'}
-            </span>
-          ))}
+        <div className="lyrics-card">
+          <div className="lyrics synced" ref={scrollRef} onTouchStart={markTouched} onWheel={markTouched}>
+            {synced.map((line, index) => (
+              <span
+                key={index}
+                ref={element => {
+                  lineRefs.current[index] = element;
+                }}
+                className={`line ${index === current ? 'current' : ''}`}
+              >
+                {line.text || '♪'}
+              </span>
+            ))}
+          </div>
         </div>
       ) : (
-        <div className="lyrics" ref={scrollRef}>
-          {shown.lyrics.split('\n').map((line, index) =>
-            /^\[.*\]$/.test(line.trim()) ? (
-              <span key={index} className="marker">
-                {line.trim().slice(1, -1)}
-              </span>
-            ) : (
-              <span key={index}>
-                {line}
-                {'\n'}
-              </span>
-            ),
-          )}
+        <div className="lyrics-card">
+          <div className="lyrics" ref={scrollRef}>
+            {shown.lyrics.split('\n').map((line, index) =>
+              /^\[.*\]$/.test(line.trim()) ? (
+                <span key={index} className="marker">
+                  {line.trim().slice(1, -1)}
+                </span>
+              ) : (
+                <span key={index}>
+                  {line}
+                  {'\n'}
+                </span>
+              ),
+            )}
+          </div>
         </div>
       )}
     </section>

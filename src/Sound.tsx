@@ -54,20 +54,23 @@ export const Sound = ({api, sources, isMock, onSettings}: SoundProps) => {
             <Icon name="volumeUp" />
           </button>
         </div>
-        <div className="row">
-          <button type="button" className="round" aria-label="Mute" onClick={() => run('mute', '🔇')}>
+      </div>
+      <footer className="panel-footer">
+        <span>
+          <button type="button" className="round small soft" aria-label="Mute" onClick={() => run('mute', '🔇')}>
             <Icon name="mute" />
           </button>
-          <button type="button" className="round muted" aria-label="Power off" onClick={() => run('off', '🌚 off')}>
-            <Icon name="power" />
+        </span>
+        <button type="button" className="round off" aria-label="Power off" onClick={() => run('off', '🌚 off')}>
+          <Icon name="power" />
+        </button>
+        <span className="end">
+          {isMock && <span className="status">mock</span>}
+          <button type="button" className="round small soft" aria-label="Settings" onClick={onSettings}>
+            <Icon name="gear" />
           </button>
-        </div>
-        <div className="row">
-          <button type="button" className="status" onClick={onSettings}>
-            settings{isMock ? ' · mock agent' : ''}
-          </button>
-        </div>
-      </div>
+        </span>
+      </footer>
     </section>
   );
 };

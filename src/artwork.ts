@@ -1,42 +1,89 @@
+const SIDE = 32;
+const HUE_GROUPS = 24;
+
+type Hsv = {hue: number; saturation: number; brightness: number};
+
+const toHsv = (red: number, green: number, blue: number): Hsv => {
+  const max = Math.max(red, green, blue);
+  const delta = max - Math.min(red, green, blue);
+  let hue = 0;
+
+  if (delta > 0) {
+    if (max === red) hue = ((green - blue) / delta + 6) % 6;
+    else if (max === green) hue = (blue - red) / delta + 2;
+    else hue = (red - green) / delta + 4;
+  }
+
+  return {hue: hue / 6, saturation: 0 === max ? 0 : delta / max, brightness: max};
+};
+
+const toHex = ({hue, saturation, brightness}: Hsv) => {
+  const channel = (offset: number) => {
+    const position = (offset + hue * 6) % 6;
+
+    return brightness - brightness * saturation * Math.max(0, Math.min(position, 4 - position, 1));
+  };
+
+  return `#${[channel(5), channel(3), channel(1)]
+    .map(value =>
+      Math.round(value * 255)
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
+};
+
 /**
- * Rough dominant colour of an image, for the accent. Downsamples to a few pixels on a canvas and keeps the most
- * saturated one (the average of album art is often muddy). Needs CORS on the image, which Spotify's CDN allows.
+ * The accent colour of a cover, like the Mac app's: the strongest hue in it, made bright enough to stand out on black.
+ * Near-black and near-white pixels are skipped, and the rest are grouped by hue, weighted by how vivid they are, so a
+ * small red detail on a cream cover still counts. Null for a cover with no colour at all, which keeps the neutral gray.
+ * Needs CORS on the image, which Spotify's CDN allows.
  */
-export const dominantColor = (url: string): Promise<string> =>
+export const dominantColor = (url: string): Promise<string | null> =>
   new Promise((resolve, reject) => {
     const image = new Image();
     image.crossOrigin = 'anonymous';
     image.onerror = () => reject(new Error(`Cannot load ${url}`));
     image.onload = () => {
-      const size = 12;
       const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
+      canvas.width = SIDE;
+      canvas.height = SIDE;
       const context = canvas.getContext('2d');
 
       if (!context) return reject(new Error('No canvas'));
 
-      context.drawImage(image, 0, 0, size, size);
-      const {data} = context.getImageData(0, 0, size, size);
-      let best = {score: -1, color: '#777777'};
+      context.drawImage(image, 0, 0, SIDE, SIDE);
+      const {data} = context.getImageData(0, 0, SIDE, SIDE);
+      const groups = Array.from({length: HUE_GROUPS}, () => ({weight: 0, red: 0, green: 0, blue: 0}));
 
       for (let offset = 0; offset < data.length; offset += 4) {
-        const [red, green, blue] = [data[offset], data[offset + 1], data[offset + 2]];
-        const max = Math.max(red, green, blue);
-        const min = Math.min(red, green, blue);
-        const saturation = 0 === max ? 0 : (max - min) / max;
-        const brightness = max / 255;
-        const score = saturation * 2 + brightness - Math.abs(brightness - 0.65);
+        const [red, green, blue] = [data[offset] / 255, data[offset + 1] / 255, data[offset + 2] / 255];
+        const {hue, saturation, brightness} = toHsv(red, green, blue);
 
-        if (score > best.score && brightness > 0.25) {
-          best = {
-            score,
-            color: `#${[red, green, blue].map(channel => channel.toString(16).padStart(2, '0')).join('')}`,
-          };
-        }
+        // Shadows and paper white say nothing about the cover's colour
+        if (brightness <= 0.2 || saturation <= 0.06) continue;
+
+        const group = groups[Math.min(HUE_GROUPS - 1, Math.floor(hue * HUE_GROUPS))];
+        const weight = saturation * saturation * brightness;
+        group.weight += weight;
+        group.red += red * weight;
+        group.green += green * weight;
+        group.blue += blue * weight;
       }
 
-      resolve(best.color);
+      const best = groups.reduce((strongest, group) => (group.weight > strongest.weight ? group : strongest));
+
+      if (best.weight <= 0.5) return resolve(null);
+
+      const {hue, saturation, brightness} = toHsv(
+        best.red / best.weight,
+        best.green / best.weight,
+        best.blue / best.weight,
+      );
+
+      resolve(
+        toHex({hue, saturation: Math.min(1, Math.max(saturation * 1.3, 0.5)), brightness: Math.max(brightness, 0.85)}),
+      );
     };
     image.src = url;
   });

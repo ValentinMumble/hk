@@ -263,9 +263,6 @@ export const Lights = ({api}: {api: Api}) => {
             />
           )}
         </div>
-        <button type="button" className="round all-off" aria-label="All lights off" onClick={allOff}>
-          <Icon name="power" />
-        </button>
         <div className="row brightness-row">
           <span className="status">🔅</span>
           <input
@@ -283,6 +280,13 @@ export const Lights = ({api}: {api: Api}) => {
           <span className="status">🔆</span>
         </div>
       </div>
+      <footer className="panel-footer">
+        <span />
+        <button type="button" className="round off" aria-label="All lights off" onClick={allOff}>
+          <Icon name="power" />
+        </button>
+        <span />
+      </footer>
     </section>
   );
 };
