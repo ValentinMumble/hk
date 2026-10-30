@@ -108,7 +108,9 @@ export const App = () => {
     }
   }, [tab]);
 
-  const tabs = info?.lyrics?.configured ? TABS : TABS.filter(candidate => 'lyrics' !== candidate.key);
+  // Until the agent answers, every tab shows (the panels as skeletons), so the bar does not jump when it does
+  const hasLyrics = !info || Boolean(info.lyrics?.configured);
+  const tabs = hasLyrics ? TABS : TABS.filter(candidate => 'lyrics' !== candidate.key);
   const index = Math.max(
     0,
     tabs.findIndex(candidate => candidate.key === tab),
@@ -189,7 +191,7 @@ export const App = () => {
             </section>
           )}
         </div>
-        {info?.lyrics?.configured && (
+        {hasLyrics && (
           <div className="tab-panel" hidden={'lyrics' !== tab}>
             <Lyrics lyrics={lyrics} playhead={playhead} isActive={'lyrics' === tab} onSeek={seekTo} />
           </div>
