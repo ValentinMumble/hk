@@ -4,6 +4,8 @@ import type {Playhead} from './api';
 import {currentLine, LEAD_MS, type SongLyrics} from './useLyrics';
 
 const TICK_MS = 250;
+/** Widths of the placeholder lines shown while the lyrics are found. */
+const SKELETON_LINES = ['70%', '85%', '55%', '78%', '62%', '80%'];
 /** After a scroll by hand, the lyrics stay where they were put for this long. */
 const MANUAL_SCROLL_MS = 4000;
 
@@ -85,8 +87,12 @@ export const Lyrics = ({lyrics: {shown, error}, playhead, isActive}: LyricsProps
         )}
       </header>
       {!shown && !error ? (
-        <div className="loader" role="status" aria-label="Finding lyrics">
-          <span className="spinner" />
+        <div className="lyrics-card" role="status" aria-label="Finding lyrics">
+          <div className="lyrics-skeleton">
+            {SKELETON_LINES.map((width, index) => (
+              <span key={index} className="skeleton" style={{width}} />
+            ))}
+          </div>
         </div>
       ) : !shown ? (
         <p className="status">😶 {error}</p>

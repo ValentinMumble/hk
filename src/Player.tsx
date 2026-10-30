@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState, type MouseEvent} from 'react';
+import {useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent} from 'react';
 import type {Api, PlaybackState, Playhead, SpotifyDevice, SpotifyPlaylist, SpotifyTrack} from './api';
 import {dominantColor} from './artwork';
 import {Icon} from './Icon';
@@ -9,6 +9,8 @@ const POLL_MS = 2000;
 const AFTER_ACTION_MS = 400;
 const VOLUME_STEP = 5;
 const DOUBLE_TAP_MS = 280;
+/** How long a play or pause tap wins over reads that do not show it yet: Spotify takes a moment to catch up. */
+const PENDING_PLAY_MS = 3000;
 const STATE_KEY = 'hk.spotify.state';
 const RING = 2 * Math.PI * 48;
 
@@ -54,8 +56,11 @@ const splitTitle = (name: string): {title: string; extras: string[]} => {
 /** Redirect URI registered in the Spotify dashboard: the app's own origin. */
 const redirectUri = () => `${window.location.origin}/`;
 
-/** One blurred copy of the album art behind the whole app (kept across tabs, the element lives outside React). */
-const setBackdrop = (artwork: string | null) => {
+/**
+ * One blurred copy of the album art behind the whole app (kept across tabs, the element lives outside React). It fades
+ * in only once the picture is decoded: fading an image that is still loading makes it pop in at the end.
+ */
+const setBackdrop = async (artwork: string | null) => {
   let image = document.querySelector<HTMLImageElement>('img.backdrop');
 
   if (!image) {
@@ -65,12 +70,22 @@ const setBackdrop = (artwork: string | null) => {
     document.body.prepend(image);
   }
 
-  if (artwork) {
-    image.src = artwork;
-    image.classList.add('visible');
-  } else {
+  if (!artwork) {
     image.classList.remove('visible');
+
+    return;
   }
+
+  image.src = artwork;
+
+  try {
+    await image.decode();
+  } catch {
+    return;
+  }
+
+  // A newer song may have replaced the picture meanwhile; its own call shows it
+  if (image.src === artwork) image.classList.add('visible');
 };
 
 export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) => {
@@ -84,9 +99,16 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
   const tapTimer = useRef<number | undefined>(undefined);
   const [isPopping, setPopping] = useState(false);
 
+  const pendingPlay = useRef<{isPlaying: boolean; until: number} | null>(null);
+
   const refresh = useCallback(async () => {
     try {
       const next = await api.spotify.state();
+      const pending = pendingPlay.current;
+
+      if (pending && next.isPlaying !== pending.isPlaying && Date.now() < pending.until) return;
+
+      pendingPlay.current = null;
       setState(next);
       setVolume(current =>
         null === current || undefined === volumeTimer.current ? (next.device?.volume ?? current) : current,
@@ -261,8 +283,29 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
 
     tapTimer.current = window.setTimeout(() => {
       tapTimer.current = undefined;
-      act(() => (state?.isPlaying ? api.spotify.pause() : api.spotify.play()));
+      togglePlay();
     }, DOUBLE_TAP_MS);
+  };
+
+  // Flips at once: the button, the paused look and the clock change before Spotify answers; a failure puts them back
+  const togglePlay = () => {
+    if (!state) return act(() => api.spotify.play());
+
+    const wasPlaying = state.isPlaying;
+    const now = Date.now();
+    const position = wasPlaying ? state.progressMs + now - state.readAt : state.progressMs;
+    pendingPlay.current = {isPlaying: !wasPlaying, until: now + PENDING_PLAY_MS};
+    setState(current => current && {...current, isPlaying: !wasPlaying, progressMs: position, readAt: now});
+
+    act(async () => {
+      try {
+        await (wasPlaying ? api.spotify.pause() : api.spotify.play());
+      } catch (error) {
+        pendingPlay.current = null;
+        setState(current => current && {...current, isPlaying: wasPlaying});
+        throw error;
+      }
+    });
   };
 
   const seek = (event: MouseEvent<HTMLDivElement>) => {
@@ -411,7 +454,11 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
             aria-label={state?.isPlaying ? 'Pause (double tap to like)' : 'Play (double tap to like)'}
             onClick={tapDisc}
           >
-            {track?.artwork ? <img key={track.artwork} src={track.artwork} alt="" /> : <div className="disc-empty" />}
+            {track?.artwork ? (
+              <img key={track.artwork} src={track.artwork} alt="" />
+            ) : (
+              <div className={`disc-empty ${state ? '' : 'skeleton'}`} />
+            )}
             {isPopping && (
               <span className="pop" aria-hidden="true">
                 <Icon name="heart" filled />
@@ -430,8 +477,14 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
           </button>
         </div>
         <div className="player-bottom">
+          {!state && (
+            <>
+              <span className="skeleton skeleton-title" />
+              <span className="skeleton skeleton-artist" />
+            </>
+          )}
           <Marquee className="player-title">
-            {track ? splitTitle(track.name).title : state ? 'Nothing playing' : '…'}
+            {track ? splitTitle(track.name).title : state ? 'Nothing playing' : ''}
             {track && splitTitle(track.name).extras.length > 0 && (
               <span className="title-extra">{splitTitle(track.name).extras.join(' · ')}</span>
             )}
@@ -494,7 +547,7 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
               type="button"
               className="round big play"
               aria-label={state?.isPlaying ? 'Pause' : 'Play'}
-              onClick={() => act(() => (state?.isPlaying ? api.spotify.pause() : api.spotify.play()))}
+              onClick={togglePlay}
             >
               <Icon name={state?.isPlaying ? 'pause' : 'play'} />
             </button>
@@ -527,6 +580,7 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
               min={0}
               max={100}
               value={volume ?? 0}
+              style={{'--value': `${volume ?? 0}%`} as CSSProperties}
               aria-label="Spotify volume"
               onChange={event => changeVolume(Number(event.target.value))}
             />

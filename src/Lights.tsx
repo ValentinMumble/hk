@@ -6,6 +6,8 @@ import {attempt} from './toast';
 const COLORS = ['#ffffff', '#ffaa71', '#01a7c2', '#57b133', '#b13333', '#ff96ca'];
 const DEBOUNCE_MS = 300;
 const LONG_PRESS_MS = 450;
+/** Placeholder tiles shown until the first read of the lights answers. */
+const SKELETON_TILES = 6;
 
 /** Icons by light name, like the old app did; anything else is a plain bulb. */
 const ICONS: Record<string, IconName> = {
@@ -61,8 +63,7 @@ const sceneLabel = (scene: HueScene, scenes: HueScene[]) =>
     ? `${scene.name} · ${scene.room}`
     : scene.name;
 
-const lightStyle = (light: Light): CSSProperties =>
-  ({'--light': light.color, '--level': light.on ? light.brightness / 100 : 0}) as CSSProperties;
+const lightStyle = (light: Light): CSSProperties => ({'--light': light.color}) as CSSProperties;
 
 export const Lights = ({api}: {api: Api}) => {
   const [lights, setLights] = useState<Light[]>([]);
@@ -77,7 +78,18 @@ export const Lights = ({api}: {api: Api}) => {
   const longPressed = useRef(false);
   const isDragging = useRef(false);
 
-  const refresh = useCallback(() => attempt(async () => setLights(await api.lights())), [api]);
+  // Read quietly: when the bridge or the agent is out of reach, the header says so instead of a toast
+  const [isReachable, setReachable] = useState(true);
+  const [isLoaded, setLoaded] = useState(false);
+  const refresh = useCallback(async () => {
+    try {
+      setLights(await api.lights());
+      setReachable(true);
+    } catch {
+      setReachable(false);
+    }
+    setLoaded(true);
+  }, [api]);
 
   useEffect(() => {
     refresh();
@@ -172,21 +184,23 @@ export const Lights = ({api}: {api: Api}) => {
   const onCount = lights.filter(light => light.on).length;
 
   return (
-    <section className="panel compact">
+    <section className={`panel compact ${isReachable ? '' : 'offline'}`}>
       <header className="panel-header">
-        <h2>Lights</h2>
+        <h2>Hue</h2>
         {target ? (
           <button type="button" className="chip on" onClick={() => setTarget(null)}>
             {target.name} ✕
           </button>
         ) : (
-          <button type="button" className="status" onClick={refresh}>
-            {onCount ? `${onCount} on` : 'all off'}
+          <button type="button" className={`pill ${!isLoaded ? '' : isReachable ? 'ok' : 'bad'}`} onClick={refresh}>
+            {!isLoaded ? 'Checking' : !isReachable ? 'Offline · retry' : onCount ? `${onCount} on` : 'All off'}
           </button>
         )}
       </header>
       <div className="panel-body">
         <div className="lights">
+          {!isLoaded &&
+            Array.from({length: SKELETON_TILES}, (_, index) => <span key={index} className="light skeleton" />)}
           {lights.map(light => (
             <button
               key={light.id}
@@ -203,7 +217,15 @@ export const Lights = ({api}: {api: Api}) => {
               onContextMenu={event => event.preventDefault()}
               onClick={() => toggle(light)}
             >
-              <Icon name={lightIcon(light.name)} />
+              <span className="light-icon">
+                <Icon name={lightIcon(light.name)} />
+              </span>
+              <span className="light-text">
+                <span className="light-name">{light.name}</span>
+                <span className="light-state">
+                  {!light.reachable ? 'Unreachable' : light.on ? `${light.brightness}%` : 'Off'}
+                </span>
+              </span>
             </button>
           ))}
         </div>
@@ -270,6 +292,7 @@ export const Lights = ({api}: {api: Api}) => {
             min={1}
             max={100}
             value={brightness}
+            style={{'--value': `${brightness}%`} as CSSProperties}
             aria-label="Brightness"
             onChange={event => {
               const value = Number(event.target.value);

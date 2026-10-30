@@ -46,36 +46,49 @@ export const Setup = ({initial, onSave, onCancel}: SetupProps) => {
     }
   };
 
+  // Opened from the app, settings are a sheet over it; the very first setup fills the screen
+  const isSheet = Boolean(onCancel);
+
   return (
-    <form className="setup" onSubmit={submit}>
-      <h1>HK</h1>
-      <label>
-        Agent URL
-        <input
-          type="url"
-          required
-          autoFocus
-          placeholder="https://mac.tailnet.ts.net"
-          value={agentUrl}
-          onChange={event => handleUrlChange(event.target.value)}
-        />
-      </label>
-      <label>
-        Token
-        <input type="password" required value={token} onChange={event => setToken(event.target.value)} />
-      </label>
-      {error && <p className="error">{error}</p>}
-      {initial && <Status settings={initial} />}
-      <div className="row">
-        {onCancel && (
-          <button type="button" className="chip" onClick={onCancel}>
+    <form className={`setup ${isSheet ? 'sheet' : ''}`} onSubmit={submit}>
+      {isSheet ? (
+        <header className="sheet-bar">
+          <span className="grabber" aria-hidden="true" />
+          <button type="button" className="sheet-action" onClick={onCancel}>
             Cancel
           </button>
-        )}
+          <h1>Settings</h1>
+          <button type="submit" className="sheet-action strong" disabled={isChecking}>
+            {isChecking ? 'Checking…' : 'Save'}
+          </button>
+        </header>
+      ) : (
+        <h1>HK</h1>
+      )}
+      <div className="group">
+        <label className="group-row">
+          Agent URL
+          <input
+            type="url"
+            required
+            autoFocus={!isSheet}
+            placeholder="https://mac.tailnet.ts.net"
+            value={agentUrl}
+            onChange={event => handleUrlChange(event.target.value)}
+          />
+        </label>
+        <label className="group-row">
+          Token
+          <input type="password" required value={token} onChange={event => setToken(event.target.value)} />
+        </label>
+      </div>
+      {error && <p className="error">{error}</p>}
+      {initial && <Status settings={initial} />}
+      {!isSheet && (
         <button type="submit" className="chip on" disabled={isChecking}>
           {isChecking ? 'Checking…' : 'Connect'}
         </button>
-      </div>
+      )}
     </form>
   );
 };

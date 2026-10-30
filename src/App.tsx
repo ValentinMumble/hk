@@ -7,7 +7,7 @@ import {Player} from './Player';
 import {loadSettings, saveSettings, type Settings} from './settings';
 import {Setup} from './Setup';
 import {Sound} from './Sound';
-import {attempt, Toaster} from './toast';
+import {Toaster} from './toast';
 import {useLyrics} from './useLyrics';
 
 type TabKey = 'spotify' | 'hk' | 'hue' | 'lyrics';
@@ -47,7 +47,14 @@ export const App = () => {
   const loadInfo = useCallback(() => {
     if (!api) return;
 
-    attempt(async () => setInfo(await api.info()));
+    // Quiet when the agent is out of reach: each tab's header shows it offline
+    (async () => {
+      try {
+        setInfo(await api.info());
+      } catch {
+        setInfo(null);
+      }
+    })();
   }, [api]);
 
   useEffect(() => {
@@ -122,18 +129,12 @@ export const App = () => {
     if (Math.abs(deltaX) > SWIPE_MIN_PX && Math.abs(deltaY) < SWIPE_MIN_PX) moveTab(deltaX < 0 ? 1 : -1);
   };
 
-  if (!api || isEditing) {
-    return (
-      <Setup
-        initial={settings}
-        onSave={next => {
-          setSettings(saveSettings(next));
-          setEditing(false);
-        }}
-        onCancel={settings ? () => setEditing(false) : undefined}
-      />
-    );
-  }
+  const save = (next: Settings) => {
+    setSettings(saveSettings(next));
+    setEditing(false);
+  };
+
+  if (!api) return <Setup initial={settings} onSave={save} />;
 
   return (
     <>
@@ -155,7 +156,15 @@ export const App = () => {
             <Player api={api} connected={info.spotify.connected} onConnected={loadInfo} onPlayhead={setPlayhead} />
           ) : (
             <section className="panel">
-              <p className="status">{info ? 'Spotify is not configured on the agent' : '…'}</p>
+              {info ? (
+                <p className="status">Spotify is not configured on the agent</p>
+              ) : (
+                <div className="player-skeleton" role="status" aria-label="Loading">
+                  <span className="disc skeleton" />
+                  <span className="skeleton skeleton-title" />
+                  <span className="skeleton skeleton-artist" />
+                </div>
+              )}
             </section>
           )}
         </div>
@@ -185,6 +194,12 @@ export const App = () => {
           </button>
         ))}
       </nav>
+      {isEditing && (
+        <>
+          <div className="sheet-backdrop" onClick={() => setEditing(false)} />
+          <Setup initial={settings} onSave={save} onCancel={() => setEditing(false)} />
+        </>
+      )}
       <Toaster />
     </>
   );
