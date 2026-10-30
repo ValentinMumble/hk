@@ -1,8 +1,8 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
+import './base.css';
 import {App} from './App';
 import {installHaptics} from './haptic';
-import './styles.css';
 
 installHaptics();
 

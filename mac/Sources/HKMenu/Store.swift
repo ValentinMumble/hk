@@ -38,6 +38,13 @@ final class Store {
     private(set) var cover: NSImage?
     private(set) var accent: Color?
     @ObservationIgnored private var coverAddress: String?
+    /// The Hue lights, and whether the bridge answers (nil until the first read).
+    private(set) var lights: [HueLight] = []
+    private(set) var isHueReachable: Bool?
+    /// Whether the amp answers (nil until the first check).
+    private(set) var isAmpOnline: Bool?
+    /// The amp cannot say which input it is on, so the last one picked here is remembered.
+    private(set) var lastSource = UserDefaults.standard.string(forKey: "hk.source")
 
     /// A few Spotify calls a minute, far under its limit (the web app reads every 2 seconds while open).
     private static let prefetchInterval: Duration = .seconds(20)
@@ -48,6 +55,8 @@ final class Store {
             while let self {
                 await self.refreshPlayback()
                 self.loadDevices()
+                await self.loadLights()
+                await self.checkAmp()
                 try? await Task.sleep(for: Self.prefetchInterval)
             }
         }
@@ -71,6 +80,31 @@ final class Store {
             if sources.isEmpty || scenes.isEmpty { await loadLists() }
             if devices.isEmpty { loadDevices() }
             if playlists.isEmpty { loadPlaylists() }
+            await loadLights()
+            await checkAmp()
+        }
+    }
+
+    /// Reads the lights quietly: when the bridge does not answer, the lights card says so.
+    func loadLights() async {
+        guard let agent else { return }
+
+        do {
+            lights = try await agent.get("/hue/lights")
+            isHueReachable = true
+        } catch {
+            isHueReachable = false
+        }
+    }
+
+    func checkAmp() async {
+        guard let agent else { return }
+
+        do {
+            try await agent.post("/hk/status")
+            isAmpOnline = true
+        } catch {
+            isAmpOnline = false
         }
     }
 
@@ -296,7 +330,15 @@ final class Store {
     }
 
     func ampSource(_ source: String) {
+        lastSource = source
+        UserDefaults.standard.set(source, forKey: "hk.source")
         run { try await $0.post("/hk/source", json(["source": source])) }
+    }
+
+    /// Flips a light at once; the next read of the lights confirms it.
+    func toggle(_ light: HueLight) {
+        if let index = lights.firstIndex(where: { $0.id == light.id }) { lights[index].on.toggle() }
+        run { try await $0.post("/hue/lights/\(light.id)/toggle") }
     }
 
     func recall(_ scene: HueScene) {
@@ -304,6 +346,7 @@ final class Store {
     }
 
     func lightsOff() {
+        for index in lights.indices { lights[index].on = false }
         run { try await $0.post("/hue/all", json(["on": false])) }
     }
 }

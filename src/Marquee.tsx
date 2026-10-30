@@ -1,9 +1,10 @@
 import {useLayoutEffect, useRef, useState, type ReactNode} from 'react';
+import './Marquee.css';
 
-type MarqueeProps = {className?: string; children: ReactNode};
+type MarqueeProps = {className?: string; children: ReactNode; onClick?: () => void};
 
 /** One line of text; when it does not fit, it slides back and forth so the whole of it can be read. */
-export const Marquee = ({className = '', children}: MarqueeProps) => {
+export const Marquee = ({className = '', children, onClick}: MarqueeProps) => {
   const outer = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLSpanElement>(null);
   const [shift, setShift] = useState(0);
@@ -25,7 +26,7 @@ export const Marquee = ({className = '', children}: MarqueeProps) => {
     : undefined;
 
   return (
-    <div ref={outer} className={`marquee ${className}`} style={style}>
+    <div ref={outer} className={`marquee ${className}`} style={style} onClick={onClick}>
       <span ref={inner} className={shift ? 'marquee-inner scrolling' : 'marquee-inner'}>
         {children}
       </span>

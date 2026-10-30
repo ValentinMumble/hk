@@ -197,8 +197,8 @@ Then open `http://127.0.0.1:5181/#agent=http://localhost:8787&token=mock`. The d
 `localhost` because Spotify only accepts that form as a local redirect address. It runs on plain HTTP, so it can also
 talk to a real agent on your network directly.
 
-Other commands: `npm run build` (type check and build into `dist/`), `npm run format` (`npm run format:mac` for the Mac app, with the swift-format that comes with Xcode), and `npm test` in `agent/` (a fake
-amp checks the TCP protocol, no hardware needed).
+Other commands: `npm run build` (type check and build into `dist/`), `npm run format` (`npm run format:mac` for the Mac app, with the swift-format that comes with Xcode), and `npm test`, which runs
+the web app's tests and the agent's (a fake amp checks the TCP protocol, no hardware needed).
 
 | Path     | What                                                                       |
 | -------- | -------------------------------------------------------------------------- |

@@ -1,0 +1,75 @@
+/* the amp's inputs as tiles; the last one picked on this device stays lit, since the amp cannot tell */
+.sources {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.source {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 8px 14px;
+  border-radius: 20px;
+  color: var(--fg);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.source svg {
+  font-size: 26px;
+}
+
+.source.on {
+  background: var(--accent);
+  box-shadow: var(--glass-edge);
+  color: #000;
+}
+
+/* sleep and mute on either side of the volume rocker, like on a remote */
+.volume-block {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 28px;
+  width: 100%;
+}
+
+.round.side {
+  width: 56px;
+  height: 56px;
+  color: var(--fg);
+  font-size: 22px;
+}
+
+/* the amp's volume as one tall rocker, like Control Center's: + on top, - below; holding a half keeps stepping */
+.rocker {
+  display: flex;
+  flex-direction: column;
+  width: 104px;
+  height: min(42dvh, 260px);
+  border-radius: 36px;
+  overflow: hidden;
+}
+
+.rocker-half {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  color: var(--fg);
+  font-size: 34px;
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+.rocker-half + .rocker-half {
+  border-top: 0.5px solid rgba(255, 255, 255, 0.14);
+}
+
+.rocker-half:active {
+  background: rgba(255, 255, 255, 0.12);
+  transform: none;
+}

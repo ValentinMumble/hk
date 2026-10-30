@@ -2,6 +2,7 @@ import {useCallback, useEffect, useRef, useState, type CSSProperties} from 'reac
 import type {Api, HueScene, Light} from './api';
 import {Icon, type IconName} from './Icon';
 import {attempt} from './toast';
+import './Lights.css';
 
 const COLORS = ['#ffffff', '#ffaa71', '#01a7c2', '#57b133', '#b13333', '#ff96ca'];
 const DEBOUNCE_MS = 300;
@@ -63,9 +64,16 @@ const sceneLabel = (scene: HueScene, scenes: HueScene[]) =>
     ? `${scene.name} · ${scene.room}`
     : scene.name;
 
-const lightStyle = (light: Light): CSSProperties => ({'--light': light.color}) as CSSProperties;
+const lightStyle = (light: Light): CSSProperties =>
+  ({'--light': light.color, '--level': `${light.brightness}%`}) as CSSProperties;
+/** A finger moving this far up or down on a tile dims it instead of tapping it. */
+const DRAG_START_PX = 8;
+/** Pixels of drag per percent of brightness. */
+const DRAG_PX_PER_PERCENT = 1.5;
 
-export const Lights = ({api}: {api: Api}) => {
+type LightsProps = {api: Api; onReachable: (isReachable: boolean) => void};
+
+export const Lights = ({api, onReachable}: LightsProps) => {
   const [lights, setLights] = useState<Light[]>([]);
   const [brightness, setBrightness] = useState(100);
   const [activeColor, setActiveColor] = useState<string | null>(null);
@@ -94,6 +102,8 @@ export const Lights = ({api}: {api: Api}) => {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => onReachable(isReachable), [isReachable, onReachable]);
 
   // Scenes are a bonus: when the agent or the bridge cannot list them, the row just stays out
   useEffect(() => {
@@ -149,6 +159,57 @@ export const Lights = ({api}: {api: Api}) => {
 
   const endPress = () => window.clearTimeout(pressTimer.current);
 
+  /** A drag up or down on a tile, from where it started: once it moves, it is no longer a tap or a long press. */
+  const drag = useRef<{id: string; startY: number; startBrightness: number; isDragging: boolean} | null>(null);
+
+  const commitLightBrightness = useDebounced((light: Light, value: number) => {
+    attempt(() => api.setLight(light.id, {on: true, brightness: value}), `🔆 ${light.name} ${value}%`);
+  }, DEBOUNCE_MS);
+
+  const startDrag = (light: Light, event: React.PointerEvent<HTMLButtonElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    drag.current = {
+      id: light.id,
+      startY: event.clientY,
+      startBrightness: light.on ? light.brightness : 0,
+      isDragging: false,
+    };
+    startPress(light);
+  };
+
+  const moveDrag = (light: Light, event: React.PointerEvent<HTMLButtonElement>) => {
+    const current = drag.current;
+
+    if (!current || current.id !== light.id) return;
+
+    const deltaY = current.startY - event.clientY;
+
+    if (!current.isDragging && Math.abs(deltaY) < DRAG_START_PX) return;
+
+    current.isDragging = true;
+    endPress();
+    const value = Math.round(Math.min(100, Math.max(1, current.startBrightness + deltaY / DRAG_PX_PER_PERCENT)));
+    setLights(items => items.map(item => (item.id === light.id ? {...item, on: true, brightness: value} : item)));
+    commitLightBrightness(light, value);
+  };
+
+  const endDrag = () => {
+    endPress();
+    // the click that ends a drag is not a tap: it is skipped once
+    if (!drag.current?.isDragging) drag.current = null;
+  };
+
+  const tapLight = (light: Light) => {
+    if (drag.current?.isDragging) {
+      drag.current = null;
+
+      return;
+    }
+
+    drag.current = null;
+    toggle(light);
+  };
+
   const toggle = (light: Light) =>
     attempt(async () => {
       if (longPressed.current) return;
@@ -188,7 +249,7 @@ export const Lights = ({api}: {api: Api}) => {
       <header className="panel-header">
         <h2>Hue</h2>
         {target ? (
-          <button type="button" className="chip on" onClick={() => setTarget(null)}>
+          <button type="button" className="chip glass on" onClick={() => setTarget(null)}>
             {target.name} ✕
           </button>
         ) : (
@@ -200,22 +261,24 @@ export const Lights = ({api}: {api: Api}) => {
       <div className="panel-body">
         <div className="lights">
           {!isLoaded &&
-            Array.from({length: SKELETON_TILES}, (_, index) => <span key={index} className="light skeleton" />)}
+            Array.from({length: SKELETON_TILES}, (_, index) => (
+              <span key={index} className="light-skeleton skeleton" />
+            ))}
           {lights.map(light => (
             <button
               key={light.id}
               type="button"
-              className={`light ${light.on ? 'on' : ''} ${light.reachable ? '' : 'dim'} ${target?.id === light.id ? 'targeted' : ''}`}
+              className={`light glass ${light.on ? 'on' : ''} ${light.reachable ? '' : 'dim'} ${target?.id === light.id ? 'targeted' : ''}`}
               style={lightStyle(light)}
               aria-pressed={light.on}
-              aria-label={`${light.name} (hold to colour it alone)`}
+              aria-label={`${light.name} (drag up or down to dim, hold to colour it alone)`}
               title={light.name}
-              onPointerDown={() => startPress(light)}
-              onPointerUp={endPress}
-              onPointerLeave={endPress}
-              onPointerCancel={endPress}
+              onPointerDown={event => startDrag(light, event)}
+              onPointerMove={event => moveDrag(light, event)}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
               onContextMenu={event => event.preventDefault()}
-              onClick={() => toggle(light)}
+              onClick={() => tapLight(light)}
             >
               <span className="light-icon">
                 <Icon name={lightIcon(light.name)} />
@@ -247,7 +310,7 @@ export const Lights = ({api}: {api: Api}) => {
               <button
                 key={scene.id}
                 type="button"
-                className={`chip ${scene.id === activeScene ? 'on' : ''}`}
+                className={`chip glass ${scene.id === activeScene ? 'on' : ''}`}
                 onClick={() => recall(scene)}
               >
                 {sceneLabel(scene, scenes)}
@@ -292,7 +355,7 @@ export const Lights = ({api}: {api: Api}) => {
             min={1}
             max={100}
             value={brightness}
-            style={{'--value': `${brightness}%`} as CSSProperties}
+            style={{'--fraction': brightness / 100} as CSSProperties}
             aria-label="Brightness"
             onChange={event => {
               const value = Number(event.target.value);
@@ -305,7 +368,7 @@ export const Lights = ({api}: {api: Api}) => {
       </div>
       <footer className="panel-footer">
         <span />
-        <button type="button" className="round off" aria-label="All lights off" onClick={allOff}>
+        <button type="button" className="round off glass" aria-label="All lights off" onClick={allOff}>
           <Icon name="power" />
         </button>
         <span />

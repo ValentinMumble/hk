@@ -1,0 +1,118 @@
+.lyrics-panel {
+  justify-content: flex-start;
+}
+
+/* the song sits between the tab's name and the lyrics' source, on one row */
+.lyrics-header {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 2.2fr) 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.lyrics-header .status {
+  justify-self: end;
+}
+
+/* the lyrics sit on a pane of glass tinted with the cover's colour, over the blurred cover: Spotify's colours with the
+   tab bar's light top edge and hairline */
+.lyrics-card {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  margin-bottom: 12px;
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--accent) 30%, rgba(18, 18, 20, 0.55));
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 0 0 0.5px rgba(255, 255, 255, 0.12),
+    0 12px 32px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.lyrics .marker {
+  display: block;
+  margin-top: 0.6em;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lyrics {
+  position: relative; /* lines measure their offset from here, to be scrolled to the middle */
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  padding: 24px 20px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  /* set like Spotify's lyrics: a bold geometric font, large, tight lines and letters */
+  font-family:
+    Figtree,
+    -apple-system,
+    BlinkMacSystemFont,
+    system-ui,
+    sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  text-align: center;
+  color: var(--fg);
+  -webkit-overflow-scrolling: touch;
+  -webkit-mask-image: linear-gradient(transparent, #000 28px, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(transparent, #000 28px, #000 calc(100% - 28px), transparent);
+}
+
+/* time-coded lyrics: the line being sung is bright, the others stay dim; room above and below lets the first and
+   last lines reach the middle */
+.lyrics.synced {
+  padding-block: 30vh;
+  white-space: normal;
+}
+
+/* a tap on a line jumps the song there */
+.lyrics.synced .line {
+  display: block;
+  padding: 8px 0;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: color 300ms ease;
+}
+
+.lyrics.synced .line.current {
+  color: var(--fg);
+  font-weight: 800;
+}
+
+.track {
+  text-align: center;
+  max-width: 100%;
+}
+
+.track-name {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.track-artist {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.lyrics-skeleton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 40px 20px;
+}
+
+.lyrics-skeleton .skeleton {
+  height: 26px;
+}

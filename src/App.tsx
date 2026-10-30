@@ -7,7 +7,7 @@ import {Player} from './Player';
 import {loadSettings, saveSettings, type Settings} from './settings';
 import {Setup} from './Setup';
 import {Sound} from './Sound';
-import {Toaster} from './toast';
+import {attempt, Toaster} from './toast';
 import {useLyrics} from './useLyrics';
 
 type TabKey = 'spotify' | 'hk' | 'hue' | 'lyrics';
@@ -19,6 +19,10 @@ const TABS: Array<{key: TabKey; label: string; icon: IconName}> = [
   {key: 'lyrics', label: 'Lyrics', icon: 'lines'},
 ];
 const DEFAULT_TAB: TabKey = 'spotify';
+
+/** The offline tabs with `key` added or taken out. */
+const withOffline = (key: TabKey, isOffline: boolean) => (current: TabKey[]) =>
+  isOffline ? (current.includes(key) ? current : [...current, key]) : current.filter(item => item !== key);
 const TAB_KEY = 'hk.tab';
 const SWIPE_MIN_PX = 60;
 
@@ -37,10 +41,26 @@ export const App = () => {
   const [isEditing, setEditing] = useState(false);
   const [info, setInfo] = useState<AgentInfo | null>(null);
   const [playhead, setPlayhead] = useState<Playhead | null>(null);
+
   const [tab, setTab] = useState<TabKey>(loadTab);
+  /** Tabs whose device does not answer: their button fades. */
+  const [offlineTabs, setOfflineTabs] = useState<TabKey[]>([]);
+  const reportHue = useCallback((isReachable: boolean) => setOfflineTabs(withOffline('hue', !isReachable)), []);
+  const reportHk = useCallback((isReachable: boolean) => setOfflineTabs(withOffline('hk', !isReachable)), []);
   const touchStart = useRef<{x: number; y: number} | null>(null);
 
   const api = useMemo(() => (settings ? createApi(settings) : null), [settings]);
+
+  // A tapped lyric line: the lyrics move there at once, the player catches up on its next read
+  const seekTo = useCallback(
+    (positionMs: number) => {
+      if (!api) return;
+
+      setPlayhead(current => current && {...current, progressMs: positionMs, readAt: Date.now()});
+      attempt(() => api.spotify.seek(positionMs));
+    },
+    [api],
+  );
   // Loaded here, so a new song's lyrics are ready before the Lyrics tab opens
   const lyrics = useLyrics(api, playhead?.trackId ?? null, Boolean(info?.lyrics?.configured));
 
@@ -141,7 +161,7 @@ export const App = () => {
       <main onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {/* every tab stays mounted and keeps its state; only the active one is shown */}
         <div className="tab-panel" hidden={'hue' !== tab}>
-          <Lights api={api} />
+          <Lights api={api} onReachable={reportHue} />
         </div>
         <div className="tab-panel" hidden={'hk' !== tab}>
           <Sound
@@ -149,6 +169,7 @@ export const App = () => {
             sources={info?.sources ?? []}
             isMock={info?.mock ?? false}
             onSettings={() => setEditing(true)}
+            onReachable={reportHk}
           />
         </div>
         <div className="tab-panel" hidden={'spotify' !== tab}>
@@ -170,7 +191,7 @@ export const App = () => {
         </div>
         {info?.lyrics?.configured && (
           <div className="tab-panel" hidden={'lyrics' !== tab}>
-            <Lyrics lyrics={lyrics} playhead={playhead} isActive={'lyrics' === tab} />
+            <Lyrics lyrics={lyrics} playhead={playhead} isActive={'lyrics' === tab} onSeek={seekTo} />
           </div>
         )}
       </main>
@@ -184,7 +205,7 @@ export const App = () => {
           <button
             key={candidate.key}
             type="button"
-            className={`tab ${candidate.key === tab ? 'active' : ''}`}
+            className={`tab ${candidate.key === tab ? 'active' : ''} ${offlineTabs.includes(candidate.key) ? 'offline' : ''}`}
             aria-label={candidate.label}
             aria-current={candidate.key === tab ? 'page' : undefined}
             onClick={() => setTab(candidate.key)}

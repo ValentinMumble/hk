@@ -117,6 +117,16 @@ struct AgentInfo: Decodable, Sendable {
     let sources: [String]
 }
 
+/// A Hue light as the agent lists it: brightness 0 to 100, colour as hex (its white when it has no colour).
+struct HueLight: Decodable, Sendable, Identifiable {
+    let id: String
+    let name: String
+    var on: Bool
+    let reachable: Bool
+    let brightness: Int
+    let color: String
+}
+
 struct HueScene: Decodable, Sendable, Identifiable {
     let id: String
     let name: String

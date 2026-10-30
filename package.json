@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"agent/src/**/*.ts\" index.html",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"agent/src/**/*.ts\" index.html",
-    "format:mac": "xcrun swift-format format --recursive mac/Sources --in-place"
+    "format:mac": "xcrun swift-format format --recursive mac/Sources --in-place",
+    "test": "vitest run src"
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -21,6 +22,7 @@
     "@vitejs/plugin-react": "^4.3.0",
     "prettier": "^3.8.4",
     "typescript": "~5.7.0",
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "vitest": "4.1.12"
   }
 }

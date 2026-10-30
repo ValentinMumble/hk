@@ -1,0 +1,194 @@
+.panel.compact {
+  gap: 14px;
+}
+
+/* lights as tiles, like Apple's Home app: icon, name and state; a lit tile turns white with its icon in the light's
+   colour */
+.lights {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.light {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px 8px 8px;
+  border-radius: 16px;
+  color: var(--fg);
+  text-align: left;
+  /* sideways swipes still change tabs; up and down drags reach the tile */
+  touch-action: pan-x;
+  -webkit-touch-callout: none;
+  transition:
+    background-color 400ms ease,
+    color 400ms ease,
+    opacity 400ms ease;
+}
+
+.light-icon {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  align-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--muted);
+  font-size: 17px;
+  transition:
+    background-color 400ms ease,
+    color 400ms ease;
+}
+
+.light-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.light-name {
+  overflow: hidden;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.light-state {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* a lit tile fills from the bottom to its brightness; dragging up or down on it changes that */
+.light.on {
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.92) var(--level), rgba(255, 255, 255, 0.62) var(--level));
+  color: #000;
+}
+
+.light.on .light-icon {
+  background: var(--light);
+  color: #000;
+}
+
+.light.on .light-state {
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.light.dim {
+  opacity: 0.4;
+}
+
+.light.targeted {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.swatches {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+.swatch {
+  flex: 1;
+  aspect-ratio: 1;
+  max-width: 40px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition: transform 150ms ease;
+}
+
+.swatch.active {
+  box-shadow:
+    0 0 0 3px #000,
+    0 0 0 5px var(--accent);
+}
+
+.swatch.off {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  border-color: var(--line);
+  color: var(--muted);
+  font-size: 1.1rem;
+  box-shadow: none;
+}
+
+.brightness-row {
+  flex-wrap: nowrap;
+}
+
+.brightness-row input[type='range'] {
+  flex: 1;
+  width: auto;
+}
+
+/* colour wheel: hue around, white in the centre */
+.wheel {
+  position: relative;
+  width: min(62vw, 240px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, #fff 0%, rgba(255, 255, 255, 0) 72%),
+    conic-gradient(from 0deg, #ff0040, #ff8000, #ffff00, #00ff40, #00ffff, #0040ff, #ff00ff, #ff0040);
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.wheel-dot {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* scenes saved on the Hue bridge: one row of chips, sliding sideways when they do not fit, centred when they do */
+.scenes {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.scenes::-webkit-scrollbar {
+  display: none;
+}
+
+.scenes > :first-child {
+  margin-left: auto;
+}
+
+.scenes > :last-child {
+  margin-right: auto;
+}
+
+.scenes .chip {
+  flex: none;
+  white-space: nowrap;
+}
+
+.light-skeleton {
+  height: 48px;
+  border-radius: 16px;
+}
+
+/* Phones: bigger colour swatches */
+@media (max-width: 430px) {
+  .swatch {
+    max-width: 52px;
+  }
+}

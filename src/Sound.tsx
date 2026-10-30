@@ -2,8 +2,15 @@ import {useCallback, useEffect, useRef, useState} from 'react';
 import type {Api} from './api';
 import {Icon, type IconName} from './Icon';
 import {attempt, toast} from './toast';
+import './Sound.css';
 
-type SoundProps = {api: Api; sources: string[]; isMock: boolean; onSettings: () => void};
+type SoundProps = {
+  api: Api;
+  sources: string[];
+  isMock: boolean;
+  onSettings: () => void;
+  onReachable: (isReachable: boolean) => void;
+};
 
 /** Holding a volume button steps once, waits a moment, then keeps stepping until it is let go. */
 const HOLD_DELAY_MS = 450;
@@ -14,7 +21,7 @@ const SOURCE_KEY = 'hk.source';
 const SOURCE_ICONS: Record<string, IconName> = {tv: 'tv', radio: 'radio', 'cable sat': 'satellite', sat: 'satellite'};
 const sourceIcon = (source: string): IconName => SOURCE_ICONS[source.trim().toLowerCase()] ?? 'speaker';
 
-export const Sound = ({api, sources, isMock, onSettings}: SoundProps) => {
+export const Sound = ({api, sources, isMock, onSettings, onReachable}: SoundProps) => {
   const [isOnline, setOnline] = useState<boolean | null>(null);
   const [lastSource, setLastSource] = useState(() => window.localStorage.getItem(SOURCE_KEY));
 
@@ -32,6 +39,9 @@ export const Sound = ({api, sources, isMock, onSettings}: SoundProps) => {
   useEffect(() => {
     checkStatus();
   }, [checkStatus]);
+
+  // Still checking counts as reachable, so the tab does not flicker on each check
+  useEffect(() => onReachable(false !== isOnline), [isOnline, onReachable]);
 
   const run = (command: string, label: string) => attempt(() => api.hk(command), label);
 
@@ -106,7 +116,7 @@ export const Sound = ({api, sources, isMock, onSettings}: SoundProps) => {
             <button
               key={source}
               type="button"
-              className={`source ${source === lastSource ? 'on' : ''}`}
+              className={`source glass ${source === lastSource ? 'on' : ''}`}
               onClick={() => pickSource(source)}
             >
               <Icon name={sourceIcon(source)} />
@@ -117,29 +127,29 @@ export const Sound = ({api, sources, isMock, onSettings}: SoundProps) => {
         <div className="volume-block">
           <button
             type="button"
-            className="round side"
+            className="round side glass"
             aria-label="Sleep timer"
             onClick={() => run('sleep', '😴 Sleep timer')}
           >
             <Icon name="sleep" />
           </button>
-          <div className="rocker" role="group" aria-label="Amp volume, hold to keep going">
+          <div className="rocker glass" role="group" aria-label="Amp volume, hold to keep going">
             {volumeHalf('volume-up', 'plus', 'Volume up')}
             {volumeHalf('volume-down', 'minus', 'Volume down')}
           </div>
-          <button type="button" className="round side" aria-label="Mute" onClick={() => run('mute', '🔇')}>
+          <button type="button" className="round side glass" aria-label="Mute" onClick={() => run('mute', '🔇')}>
             <Icon name="mute" />
           </button>
         </div>
       </div>
       <footer className="panel-footer">
         <span />
-        <button type="button" className="round off" aria-label="Power off" onClick={() => run('off', '🌚 off')}>
+        <button type="button" className="round off glass" aria-label="Power off" onClick={() => run('off', '🌚 off')}>
           <Icon name="power" />
         </button>
         <span className="end">
           {isMock && <span className="status">mock</span>}
-          <button type="button" className="round small soft" aria-label="Settings" onClick={onSettings}>
+          <button type="button" className="round small soft glass" aria-label="Settings" onClick={onSettings}>
             <Icon name="gear" />
           </button>
         </span>

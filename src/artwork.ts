@@ -33,13 +33,66 @@ const toHex = ({hue, saturation, brightness}: Hsv) => {
     .join('')}`;
 };
 
+/** Hue groups closer than this count as one colour, so each accent offered is clearly different from the others. */
+const NEAR_GROUPS = 2;
+/** A group needs at least this much vivid colour to be offered; below it, a cover has no colour of its own. */
+const MIN_WEIGHT = 0.5;
+
 /**
- * The accent colour of a cover, like the Mac app's: the strongest hue in it, made bright enough to stand out on black.
- * Near-black and near-white pixels are skipped, and the rest are grouped by hue, weighted by how vivid they are, so a
- * small red detail on a cream cover still counts. Null for a cover with no colour at all, which keeps the neutral gray.
- * Needs CORS on the image, which Spotify's CDN allows.
+ * The accent colours of a cover, strongest first, like the Mac app's: each a hue that is present in the cover, made
+ * bright enough to stand out on black. Near-black and near-white pixels are skipped, and the rest are grouped by hue,
+ * weighted by how vivid they are, so a small red detail on a cream cover still counts. Empty for a cover with no colour
+ * at all, which keeps the neutral gray. Works on RGBA pixels, as a canvas gives them.
  */
-export const dominantColor = (url: string): Promise<string | null> =>
+export const accentsFromPixels = (data: ArrayLike<number>, limit = 4): string[] => {
+  const groups = Array.from({length: HUE_GROUPS}, (_, index) => ({index, weight: 0, red: 0, green: 0, blue: 0}));
+
+  for (let offset = 0; offset < data.length; offset += 4) {
+    const [red, green, blue] = [data[offset] / 255, data[offset + 1] / 255, data[offset + 2] / 255];
+    const {hue, saturation, brightness} = toHsv(red, green, blue);
+
+    // Shadows and paper white say nothing about the cover's colour
+    if (brightness <= 0.2 || saturation <= 0.06) continue;
+
+    const group = groups[Math.min(HUE_GROUPS - 1, Math.floor(hue * HUE_GROUPS))];
+    const weight = saturation * saturation * brightness;
+    group.weight += weight;
+    group.red += red * weight;
+    group.green += green * weight;
+    group.blue += blue * weight;
+  }
+
+  const picked: typeof groups = [];
+  const distance = (first: number, second: number) => {
+    const gap = Math.abs(first - second);
+
+    return Math.min(gap, HUE_GROUPS - gap);
+  };
+
+  for (const group of [...groups].sort((first, second) => second.weight - first.weight)) {
+    if (group.weight <= MIN_WEIGHT || picked.length >= limit) break;
+    if (picked.some(other => distance(other.index, group.index) <= NEAR_GROUPS)) continue;
+
+    picked.push(group);
+  }
+
+  return picked.map(group => {
+    const {hue, saturation, brightness} = toHsv(
+      group.red / group.weight,
+      group.green / group.weight,
+      group.blue / group.weight,
+    );
+
+    return toHex({
+      hue,
+      saturation: Math.min(1, Math.max(saturation * 1.3, 0.5)),
+      brightness: Math.max(brightness, 0.85),
+    });
+  });
+};
+
+/** The accent colours of the cover at `url`. Needs CORS on the image, which Spotify's CDN allows. */
+export const coverAccents = (url: string): Promise<string[]> =>
   new Promise((resolve, reject) => {
     const image = new Image();
     image.crossOrigin = 'anonymous';
@@ -53,37 +106,7 @@ export const dominantColor = (url: string): Promise<string | null> =>
       if (!context) return reject(new Error('No canvas'));
 
       context.drawImage(image, 0, 0, SIDE, SIDE);
-      const {data} = context.getImageData(0, 0, SIDE, SIDE);
-      const groups = Array.from({length: HUE_GROUPS}, () => ({weight: 0, red: 0, green: 0, blue: 0}));
-
-      for (let offset = 0; offset < data.length; offset += 4) {
-        const [red, green, blue] = [data[offset] / 255, data[offset + 1] / 255, data[offset + 2] / 255];
-        const {hue, saturation, brightness} = toHsv(red, green, blue);
-
-        // Shadows and paper white say nothing about the cover's colour
-        if (brightness <= 0.2 || saturation <= 0.06) continue;
-
-        const group = groups[Math.min(HUE_GROUPS - 1, Math.floor(hue * HUE_GROUPS))];
-        const weight = saturation * saturation * brightness;
-        group.weight += weight;
-        group.red += red * weight;
-        group.green += green * weight;
-        group.blue += blue * weight;
-      }
-
-      const best = groups.reduce((strongest, group) => (group.weight > strongest.weight ? group : strongest));
-
-      if (best.weight <= 0.5) return resolve(null);
-
-      const {hue, saturation, brightness} = toHsv(
-        best.red / best.weight,
-        best.green / best.weight,
-        best.blue / best.weight,
-      );
-
-      resolve(
-        toHex({hue, saturation: Math.min(1, Math.max(saturation * 1.3, 0.5)), brightness: Math.max(brightness, 0.85)}),
-      );
+      resolve(accentsFromPixels(context.getImageData(0, 0, SIDE, SIDE).data));
     };
     image.src = url;
   });

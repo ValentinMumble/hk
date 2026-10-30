@@ -2,6 +2,7 @@ import {useState, type FormEvent} from 'react';
 import {createApi} from './api';
 import {Status} from './Status';
 import type {Settings} from './settings';
+import './Setup.css';
 
 type SetupProps = {
   initial: Settings | null;
@@ -85,7 +86,7 @@ export const Setup = ({initial, onSave, onCancel}: SetupProps) => {
       {error && <p className="error">{error}</p>}
       {initial && <Status settings={initial} />}
       {!isSheet && (
-        <button type="submit" className="chip on" disabled={isChecking}>
+        <button type="submit" className="chip glass on" disabled={isChecking}>
           {isChecking ? 'Checking…' : 'Connect'}
         </button>
       )}

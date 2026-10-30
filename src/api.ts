@@ -1,5 +1,25 @@
 import type {Settings} from './settings';
 
+// The agent's own types, so the two sides cannot drift apart; type-only, nothing of the agent ends up in the bundle
+import type {
+  HueScene,
+  HueState,
+  Light,
+  LyricsLine,
+  LyricsResult as AgentLyricsResult,
+  PlaybackState,
+  SpotifyDevice,
+  SpotifyPlaylist,
+  SpotifyTrack,
+} from '../agent/src/types';
+
+export type {HueScene, HueState, Light, LyricsLine, PlaybackState, SpotifyDevice, SpotifyPlaylist, SpotifyTrack};
+export type RepeatState = PlaybackState['repeat'];
+
+/** Lyrics as the agent's route sends them: with the song they belong to. */
+export type LyricsResult = AgentLyricsResult & {trackId: string | null};
+/** Where the player is in the song, as last read: enough to follow it between reads. */
+export type Playhead = {trackId: string | null; progressMs: number; readAt: number; isPlaying: boolean};
 export type AgentInfo = {
   ok: boolean;
   mock: boolean;
@@ -9,70 +29,6 @@ export type AgentInfo = {
   uptime?: number;
   spotify: {configured: boolean; connected: boolean};
   lyrics?: {configured: boolean; genius?: boolean};
-};
-/** One line of time-coded lyrics: when it starts in the song, and its words (empty for a pause). */
-export type LyricsLine = {timeMs: number; text: string};
-export type LyricsResult = {
-  trackId: string | null;
-  title: string;
-  artist: string;
-  source: string;
-  url: string;
-  lyrics: string;
-  /** Time-coded lines for this recording, when the source has them. */
-  synced: LyricsLine[] | null;
-  instrumental: boolean;
-};
-/** Where the player is in the song, as last read: enough to follow it between reads. */
-export type Playhead = {trackId: string | null; progressMs: number; readAt: number; isPlaying: boolean};
-/** A scene saved on the Hue bridge, with its room. */
-export type HueScene = {id: string; name: string; room: string | null};
-export type RepeatState = 'off' | 'track' | 'context';
-export type PlaybackState = {
-  isPlaying: boolean;
-  progressMs: number;
-  readAt: number;
-  shuffle: boolean;
-  repeat: RepeatState;
-  device: {id: string; name: string; volume: number} | null;
-  track: {
-    id: string;
-    uri: string;
-    name: string;
-    artists: string;
-    album: string;
-    artwork: string | null;
-    durationMs: number;
-    saved: boolean;
-  } | null;
-  contextUri: string | null;
-};
-export type SpotifyDevice = {id: string; name: string; isActive: boolean; volume: number};
-export type SpotifyPlaylist = {id: string; uri: string; name: string; image: string | null};
-export type SpotifyTrack = {
-  id: string;
-  uri: string;
-  name: string;
-  artists: string;
-  album: string;
-  artwork: string | null;
-};
-export type Light = {
-  id: string;
-  name: string;
-  on: boolean;
-  reachable: boolean;
-  brightness: number;
-  hasColor: boolean;
-  color: string;
-};
-export type HueState = {
-  on?: boolean;
-  color?: string;
-  brightness?: number;
-  effect?: 'colorloop' | 'none';
-  alert?: 'select' | 'lselect' | 'none';
-  transition?: number;
 };
 
 export const createApi = ({agentUrl, token}: Settings) => {

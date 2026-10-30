@@ -40,7 +40,10 @@ export const installHaptics = () => {
   document.addEventListener(
     'pointerdown',
     event => {
-      if ((event.target as Element | null)?.closest?.('button, .tab, .swatch, .light, .disc, .select-wrap')) haptic();
+      if (
+        (event.target as Element | null)?.closest?.('button, .tab, .swatch, .light, .disc, .select-wrap, .player-title')
+      )
+        haptic();
     },
     {passive: true},
   );

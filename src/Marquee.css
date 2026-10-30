@@ -1,0 +1,29 @@
+/* long single lines slide back and forth instead of being cut */
+.marquee {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+}
+
+/* the inset matches the fade, so the first and last letters are never inside it */
+.marquee-inner {
+  display: inline-block;
+  padding: 0 12px;
+}
+
+.marquee-inner.scrolling {
+  animation: marquee var(--duration) ease-in-out infinite alternate;
+}
+
+@keyframes marquee {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+  88%,
+  100% {
+    transform: translateX(var(--shift));
+  }
+}

@@ -1,0 +1,98 @@
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 420px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 24px;
+  justify-content: center;
+}
+
+.setup h1 {
+  letter-spacing: 0.3em;
+  text-align: center;
+}
+
+/* grouped rows like iOS Settings: one rounded block, hairlines between the rows */
+.group,
+.status-list {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.group-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 16px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.group-row + .group-row,
+.status-line + .status-line {
+  border-top: 0.5px solid var(--line);
+}
+
+/* 16px or more, or iOS zooms in on focus */
+.group-row input {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 1rem;
+  outline: none;
+}
+
+/* Settings opened from the app are a sheet (see base.css): the full-screen setup's centring and spacing do not apply */
+.setup.sheet {
+  justify-content: flex-start;
+  min-height: 0;
+  max-width: 480px;
+  padding: 8px 16px calc(env(safe-area-inset-bottom, 0px) + 24px);
+}
+
+.sheet .group,
+.sheet .status-list {
+  background: #2c2c2e;
+}
+
+/* status in settings */
+.status-list {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.status-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.status-line dt {
+  color: var(--muted);
+}
+
+.status-line dd {
+  margin: 0;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-line.ok dd::before {
+  content: '● ';
+  color: var(--green);
+}
+
+.status-line.bad dd::before {
+  content: '● ';
+  color: var(--red);
+}

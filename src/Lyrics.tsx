@@ -2,6 +2,7 @@ import {useEffect, useRef, useState} from 'react';
 import {Marquee} from './Marquee';
 import type {Playhead} from './api';
 import {currentLine, LEAD_MS, type SongLyrics} from './useLyrics';
+import './Lyrics.css';
 
 const TICK_MS = 250;
 /** Widths of the placeholder lines shown while the lyrics are found. */
@@ -12,10 +13,15 @@ const MANUAL_SCROLL_MS = 4000;
 const positionOf = (playhead: Playhead, now: number) =>
   playhead.isPlaying ? playhead.progressMs + now - playhead.readAt : playhead.progressMs;
 
-type LyricsProps = {lyrics: SongLyrics; playhead: Playhead | null; isActive: boolean};
+type LyricsProps = {
+  lyrics: SongLyrics;
+  playhead: Playhead | null;
+  isActive: boolean;
+  onSeek: (positionMs: number) => void;
+};
 
 /** The words of the playing song. With time-coded lines, the current one lights up and stays in the middle. */
-export const Lyrics = ({lyrics: {shown, error}, playhead, isActive}: LyricsProps) => {
+export const Lyrics = ({lyrics: {shown, error}, playhead, isActive, onSeek}: LyricsProps) => {
   const [now, setNow] = useState(() => Date.now());
   const scrollRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<Array<HTMLSpanElement | null>>([]);
@@ -108,6 +114,11 @@ export const Lyrics = ({lyrics: {shown, error}, playhead, isActive}: LyricsProps
                   lineRefs.current[index] = element;
                 }}
                 className={`line ${index === current ? 'current' : ''}`}
+                onClick={() => {
+                  // a tap is not a scroll by hand: the tapped line comes to the middle
+                  touchedAt.current = 0;
+                  onSeek(line.timeMs);
+                }}
               >
                 {line.text || '♪'}
               </span>
