@@ -61,7 +61,7 @@ struct SpotifyCard: View {
 
             VStack(spacing: 6) {
                 HStack {
-                    GlassIcon(symbol: "speaker.fill", help: "Spotify volume down", size: 13) {
+                    GlassIcon(symbol: "speaker.wave.1.fill", help: "Spotify volume down", size: 13) {
                         store.stepVolume(by: -5)
                     }
                     Slider(value: $store.volume, in: 0...100) { isEditing in
