@@ -61,7 +61,7 @@ main {
   max-width: 480px;
   min-height: 0;
   margin: 0 auto;
-  padding: calc(env(safe-area-inset-top, 0px) + 20px) 16px 12px;
+  padding: calc(env(safe-area-inset-top, 0px) + 6px) 16px 12px;
   overflow-y: auto;
 }
 
@@ -118,10 +118,12 @@ h2 {
   font-weight: normal;
 }
 
+/* a solid grey with a soft shadow: the see-through --muted looks smudged over the blurred cover */
 h2 {
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--muted);
+  color: #d1d1d6;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }

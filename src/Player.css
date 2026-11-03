@@ -230,7 +230,7 @@ body:not([data-tab='spotify']):not([data-tab='lyrics']) .backdrop {
 /* up next, on its own line under the times; a tap opens the queue in a sheet */
 .player .up-next {
   min-width: 0;
-  margin: 2px auto 0;
+  margin: 2px auto 14px;
   max-width: 100%;
   padding: 4px 14px;
   border-radius: 999px;
