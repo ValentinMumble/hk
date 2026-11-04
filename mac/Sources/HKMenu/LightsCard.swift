@@ -4,52 +4,61 @@ import SwiftUI
 /// everyday scene and "off" in big, and the other scenes.
 struct LightsCard: View {
     @Bindable var store: Store
+    @AppStorage(Store.lightsFoldedKey) private var isFolded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                SectionLabel("💡 Hue")
+                FoldingLabel(text: "💡 Hue", isFolded: $isFolded)
                 StatusPill(text: statusText, isOnline: store.isHueReachable) { Task { await store.loadLights() } }
+                Spacer()
             }
 
-            Group {
-                if !store.lights.isEmpty {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 6)], spacing: 6) {
-                        ForEach(store.lights) { light in
-                            LightTile(light: light) { store.toggle(light) }
-                        }
-                    }
-                }
-
-                HStack(spacing: 8) {
-                    if let mainScene {
-                        Button {
-                            store.recall(mainScene)
-                        } label: {
-                            Label(sceneLabel(mainScene), systemImage: "lightbulb.fill").frame(maxWidth: .infinity)
-                        }
-                        .tint(.orange)
-                    }
-                    Button(action: store.lightsOff) {
-                        Image(systemName: "power").frame(maxWidth: .infinity)
-                    }
-                    .tint(.gray)
-                    .help("All lights off")
-                }
-                .buttonStyle(.glassProminent)
-                .controlSize(.large)
-
-                let otherScenes = store.scenes.filter { $0.id != mainScene?.id }
-
-                if !otherScenes.isEmpty {
-                    ButtonGrid(items: otherScenes, id: \.id, label: sceneLabel) { store.recall($0) }
-                }
-            }
-            // Clicks would not reach a bridge that does not answer
-            .opacity(store.isHueReachable == false ? 0.4 : 1)
+            if !isFolded { lights }
         }
         .padding(12)
         .background(.quinary, in: .card)
+        .onChange(of: isFolded) { _, isNowFolded in
+            if !isNowFolded { Task { await store.loadLights() } }
+        }
+    }
+
+    private var lights: some View {
+        Group {
+            if !store.lights.isEmpty {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 6)], spacing: 6) {
+                    ForEach(store.lights) { light in
+                        LightTile(light: light) { store.toggle(light) }
+                    }
+                }
+            }
+
+            HStack(spacing: 8) {
+                if let mainScene {
+                    Button {
+                        store.recall(mainScene)
+                    } label: {
+                        Label(sceneLabel(mainScene), systemImage: "lightbulb.fill").frame(maxWidth: .infinity)
+                    }
+                    .tint(.orange)
+                }
+                Button(action: store.lightsOff) {
+                    Image(systemName: "power").frame(maxWidth: .infinity)
+                }
+                .tint(.gray)
+                .help("All lights off")
+            }
+            .buttonStyle(.glassProminent)
+            .controlSize(.large)
+
+            let otherScenes = store.scenes.filter { $0.id != mainScene?.id }
+
+            if !otherScenes.isEmpty {
+                ButtonGrid(items: otherScenes, id: \.id, label: sceneLabel) { store.recall($0) }
+            }
+        }
+        // Clicks would not reach a bridge that does not answer
+        .opacity(store.isHueReachable == false ? 0.4 : 1)
     }
 
     private var statusText: String {

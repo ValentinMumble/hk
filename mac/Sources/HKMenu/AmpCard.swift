@@ -4,34 +4,40 @@ import SwiftUI
 /// one rocker that keeps stepping while held, with sleep and mute on either side, like on a remote.
 struct AmpCard: View {
     @Bindable var store: Store
+    @AppStorage(Store.ampFoldedKey) private var isFolded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                SectionLabel("🔊 HK")
+                FoldingLabel(text: "🔊 HK", isFolded: $isFolded)
                 StatusPill(text: statusText, isOnline: store.isAmpOnline) { Task { await store.checkAmp() } }
                 Spacer()
                 GlassIcon(symbol: "power", help: "Amp off", size: 11) { store.amp("off") }
             }
 
-            Group {
-                if !store.sources.isEmpty {
-                    sources
-                }
+            if !isFolded {
+                Group {
+                    if !store.sources.isEmpty {
+                        sources
+                    }
 
-                HStack {
-                    GlassIcon(symbol: "moon.fill", help: "Sleep timer", size: 13) { store.amp("sleep") }
-                    Spacer()
-                    rocker
-                    Spacer()
-                    GlassIcon(symbol: "speaker.slash.fill", help: "Mute", size: 13) { store.amp("mute") }
+                    HStack {
+                        GlassIcon(symbol: "moon.fill", help: "Sleep timer", size: 13) { store.amp("sleep") }
+                        Spacer()
+                        rocker
+                        Spacer()
+                        GlassIcon(symbol: "speaker.slash.fill", help: "Mute", size: 13) { store.amp("mute") }
+                    }
                 }
+                // Taps would not reach an amp that does not answer
+                .opacity(store.isAmpOnline == false ? 0.4 : 1)
             }
-            // Taps would not reach an amp that does not answer
-            .opacity(store.isAmpOnline == false ? 0.4 : 1)
         }
         .padding(12)
         .background(.quinary, in: .card)
+        .onChange(of: isFolded) { _, isNowFolded in
+            if !isNowFolded { Task { await store.checkAmp() } }
+        }
     }
 
     private var statusText: String {

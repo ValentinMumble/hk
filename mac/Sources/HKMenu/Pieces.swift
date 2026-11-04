@@ -20,6 +20,29 @@ struct SectionLabel: View {
     }
 }
 
+/// A card's title that folds the card: a click hides all but the title row, and the choice is kept across launches.
+struct FoldingLabel: View {
+    let text: String
+    @Binding var isFolded: Bool
+
+    var body: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) { isFolded.toggle() }
+        } label: {
+            HStack(spacing: 5) {
+                SectionLabel(text)
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.tertiary)
+                    .rotationEffect(.degrees(isFolded ? 0 : 90))
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(isFolded ? "Show" : "Hide")
+    }
+}
+
 /// A round, neutral glass button around an icon.
 struct GlassIcon: View {
     let symbol: String

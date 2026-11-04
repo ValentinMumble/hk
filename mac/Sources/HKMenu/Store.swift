@@ -48,6 +48,9 @@ final class Store {
 
     /// A few Spotify calls a minute, far under its limit (the web app reads every 2 seconds while open).
     private static let prefetchInterval: Duration = .seconds(20)
+    /// Where the amp and lights cards keep whether they are folded.
+    static let ampFoldedKey = "ampFolded"
+    static let lightsFoldedKey = "lightsFolded"
 
     init() {
         Task { await loadLists() }
@@ -55,8 +58,7 @@ final class Store {
             while let self {
                 await self.refreshPlayback()
                 self.loadDevices()
-                await self.loadLights()
-                await self.checkAmp()
+                await self.checkUnfoldedDevices()
                 try? await Task.sleep(for: Self.prefetchInterval)
             }
         }
@@ -80,9 +82,14 @@ final class Store {
             if sources.isEmpty || scenes.isEmpty { await loadLists() }
             if devices.isEmpty { loadDevices() }
             if playlists.isEmpty { loadPlaylists() }
-            await loadLights()
-            await checkAmp()
+            await checkUnfoldedDevices()
         }
+    }
+
+    /// A folded card is not checked: away from home its device cannot answer anyway. It is checked again on unfolding.
+    private func checkUnfoldedDevices() async {
+        if !UserDefaults.standard.bool(forKey: Self.lightsFoldedKey) { await loadLights() }
+        if !UserDefaults.standard.bool(forKey: Self.ampFoldedKey) { await checkAmp() }
     }
 
     /// Reads the lights quietly: when the bridge does not answer, the lights card says so.
