@@ -406,7 +406,6 @@ input[type='range']::-moz-range-thumb {
   color: var(--fg);
   font-size: 0.62rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
   transition:
     color 300ms ease,
     transform 200ms ease;
