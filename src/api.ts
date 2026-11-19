@@ -50,9 +50,11 @@ export const createApi = ({agentUrl, token}: Settings) => {
 
     if (204 === response.status) return undefined as T;
 
-    const data = await response.json().catch(() => ({}));
+    const data = await response.json().catch(() => undefined);
 
-    if (!response.ok) throw new Error(data.error ?? `HTTP ${response.status}`);
+    if (!response.ok) throw new Error(data?.error ?? `HTTP ${response.status}`);
+    // A page instead of data (a café's or a hotel's Wi-Fi login): an error, never empty data shown.
+    if (undefined === data) throw new Error('No answer from the agent: check the connection');
 
     return data as T;
   };

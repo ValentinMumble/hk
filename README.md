@@ -29,7 +29,8 @@ The screenshots come from the agent's mock mode, which fakes every device.
 - **HK**: the amp's inputs, volume, mute and power, with an online dot.
 
 Swipe left or right to change tabs (arrow keys on a computer). Added to the iPhone home screen, it opens full screen like
-a native app.
+a native app, and at once: a service worker (`sw/sw.js`) keeps the app on the phone, and it reloads into a new deploy
+by itself.
 
 ## How it works
 
