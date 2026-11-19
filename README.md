@@ -213,11 +213,11 @@ out.
 ## Mac menu bar app
 
 `mac/` holds a small native remote for the Mac menu bar: a click on the speaker icon opens a panel with the Spotify
-controls and volume, the amp's volume, mute, power and inputs, and the Hue scenes with "All off" (a click on the HK or
+controls, the next song and the volume, the amp's volume, mute, power and inputs, and the Hue scenes with "All off" (a click on the HK or
 Hue title folds that card, and a folded card's device is not checked). At the bottom, the
-lyrics follow the song line by line when they are time-coded. It talks to the same agent and reads nothing in the
-background: the playback is read when the panel opens (with the lyrics, for a new song), the amp inputs and Hue scenes
-when the app starts, and the rest only on a click. Beside the icon, the menu bar also shows the download speed and, when a
+lyrics follow the song line by line when they are time-coded (a click on a line plays from there). It talks to the
+same agent: the playback is read every 20 seconds and when the panel opens (with the lyrics and the next song, for a new
+song), the amp inputs and Hue scenes when the app starts, and the rest only on a click. Beside the icon, the menu bar also shows the download speed and, when a
 charger is plugged in, its wattage, read from the Mac itself every 5 seconds.
 
 Build and install it in `~/Applications` (needs Xcode or its command line tools, macOS 26 or newer for its Liquid Glass look):

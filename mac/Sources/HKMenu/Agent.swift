@@ -107,6 +107,13 @@ struct SpotifyPlaylist: Decodable, Sendable, Identifiable {
     let name: String
 }
 
+/// A song waiting in the queue: only the first one shows, as up next.
+struct QueuedTrack: Decodable, Sendable {
+    let id: String
+    let name: String
+    let artists: String
+}
+
 /// How many songs a radio queued.
 struct RadioReply: Decodable, Sendable {
     let queued: Int

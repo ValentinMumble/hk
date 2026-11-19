@@ -9,6 +9,8 @@ struct LyricsView: View {
     let readAt: Date
     /// The cover's colour, for the line being sung.
     let accent: Color?
+    /// A clicked line moves the song there, which also puts lyrics that drifted back in step.
+    let onSeek: (Int) -> Void
 
     /// Lines light up a little early: reading takes a moment, and the position is only estimated.
     private static let leadMs = 300.0
@@ -23,7 +25,7 @@ struct LyricsView: View {
                         TimelineView(.periodic(from: .now, by: 0.25)) { context in
                             SyncedLyrics(
                                 lines: lines, current: currentLine(lines, at: position(at: context.date)),
-                                accent: accent)
+                                accent: accent, onSeek: onSeek)
                         }
                     } else {
                         ScrollView {
@@ -43,7 +45,7 @@ struct LyricsView: View {
             }
             // A fresh view for each song, so its lyrics start at the top
             .id(lyrics?.trackId)
-            .frame(height: 160)
+            .frame(height: 260)
             // The lines fade out at the top and bottom edges
             .mask {
                 LinearGradient(
@@ -78,25 +80,33 @@ struct LyricsView: View {
     }
 }
 
-/// Time-coded lines, the current one bright and kept in the middle.
+/// Time-coded lines, the current one bright and kept in the middle; a click on a line plays from there.
 private struct SyncedLyrics: View {
     let lines: [LyricsResult.Line]
     let current: Int
     let accent: Color?
+    let onSeek: (Int) -> Void
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(spacing: 8) {
                     ForEach(lines.indices, id: \.self) { index in
-                        Text(lines[index].text.isEmpty ? "♪" : lines[index].text)
-                            .font(.title3.weight(index == current ? .semibold : .regular))
-                            .foregroundStyle(
-                                index == current ? AnyShapeStyle(accent ?? .primary) : AnyShapeStyle(.secondary)
-                            )
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
-                            .id(index)
+                        Button {
+                            onSeek(lines[index].timeMs)
+                        } label: {
+                            Text(lines[index].text.isEmpty ? "♪" : lines[index].text)
+                                .font(.title3.weight(index == current ? .semibold : .regular))
+                                .foregroundStyle(
+                                    index == current ? AnyShapeStyle(accent ?? .primary) : AnyShapeStyle(.secondary)
+                                )
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Play from here")
+                        .id(index)
                     }
                 }
                 .padding(.vertical, 60)

@@ -41,6 +41,17 @@ struct SpotifyCard: View {
 
             SeekBar(playback: store.playback, readAt: store.playbackReadAt, accent: accent, onSeek: store.seek)
 
+            if let upNext = store.upNext {
+                Text("Next · \(upNext.name) · \(upNext.artists)")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .glassEffect(.regular, in: .capsule)
+                    .help("Up next: \(upNext.name), \(upNext.artists)")
+            }
+
             GlassEffectContainer(spacing: 16) {
                 HStack(spacing: 16) {
                     radioButton

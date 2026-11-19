@@ -18,6 +18,9 @@ final class Store {
     private(set) var lyricsError: String?
     /// The song the lyrics (or their error) belong to, so a song without lyrics is not asked again on each open.
     private var lyricsTrackId: String?
+    /// The song after this one, read again for each new song and after a radio.
+    private(set) var upNext: QueuedTrack?
+    @ObservationIgnored private var upNextTrackId: String?
     var volume = 50.0
     var sources: [String] = []
     var scenes: [HueScene] = []
@@ -130,6 +133,11 @@ final class Store {
                 Task { await loadCover(state.track?.artwork) }
             }
 
+            if state.track?.id != upNextTrackId {
+                upNextTrackId = state.track?.id
+                await loadUpNext()
+            }
+
             // Lyrics are read again only for a new song, starting from an empty view
             if state.track?.id != lyricsTrackId {
                 clearLyrics()
@@ -138,6 +146,14 @@ final class Store {
         } catch {
             message = error.localizedDescription
         }
+    }
+
+    /// Reads the queue quietly: without it, the card just shows no up next.
+    private func loadUpNext() async {
+        guard let agent else { return }
+
+        let queue: [QueuedTrack]? = try? await agent.get("/spotify/queue")
+        upNext = queue?.first
     }
 
     private func loadLyrics(for trackId: String?) async {
@@ -276,6 +292,7 @@ final class Store {
                     "/spotify/radio", json(["trackId": track.id]), reading: RadioReply.self)
                 notice = "📻 \(reply.queued) songs like \(track.name) queued"
                 message = nil
+                await loadUpNext()
             } catch {
                 message = error.localizedDescription
             }

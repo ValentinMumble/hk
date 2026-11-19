@@ -15,7 +15,7 @@ struct PanelView: View {
                 LightsCard(store: store)
                 LyricsView(
                     lyrics: store.lyrics, error: store.lyricsError, playback: store.playback,
-                    readAt: store.playbackReadAt, accent: store.accent
+                    readAt: store.playbackReadAt, accent: store.accent, onSeek: { store.seek(to: $0) }
                 )
                 .padding(.vertical, 10)
                 .padding(.horizontal, 12)
