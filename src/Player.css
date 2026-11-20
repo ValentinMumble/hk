@@ -242,6 +242,10 @@ body:not([data-tab='spotify']):not([data-tab='lyrics']) .backdrop {
   text-align: center;
 }
 
+.player .up-next.hidden {
+  visibility: hidden;
+}
+
 .up-next span {
   display: block;
   overflow: hidden;
@@ -298,30 +302,19 @@ body:not([data-tab='spotify']):not([data-tab='lyrics']) .backdrop {
   color: rgba(255, 255, 255, 0.6);
 }
 
-.disc.skeleton,
 .disc-empty.skeleton {
   border-radius: 50%;
 }
 
-.skeleton-title {
+/* the title and artist lines while loading: shorter bars, at the height their text will take */
+.player-title.skeleton {
   width: 60%;
-  height: 22px;
-  margin: 4px auto 0;
+  margin-inline: auto;
 }
 
-.skeleton-artist {
+.player-artist.skeleton {
   width: 40%;
-  height: 16px;
-  margin: 2px auto 6px;
-}
-
-.player-skeleton {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  justify-content: center;
-  gap: 12px;
-  width: 100%;
+  margin-inline: auto;
 }
 
 /* Phones (iPhone 16 Pro is 402 x 874): a bigger play button and artwork */

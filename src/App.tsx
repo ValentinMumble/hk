@@ -175,19 +175,17 @@ export const App = () => {
           />
         </div>
         <div className="tab-panel" hidden={'spotify' !== tab}>
-          {info?.spotify.configured ? (
-            <Player api={api} connected={info.spotify.connected} onConnected={loadInfo} onPlayhead={setPlayhead} />
+          {/* the player shows its own skeleton until the agent answers, laid out like the loaded player */}
+          {!info || info.spotify.configured ? (
+            <Player
+              api={api}
+              connected={info?.spotify.connected ?? true}
+              onConnected={loadInfo}
+              onPlayhead={setPlayhead}
+            />
           ) : (
             <section className="panel">
-              {info ? (
-                <p className="status">Spotify is not configured on the agent</p>
-              ) : (
-                <div className="player-skeleton" role="status" aria-label="Loading">
-                  <span className="disc skeleton" />
-                  <span className="skeleton skeleton-title" />
-                  <span className="skeleton skeleton-artist" />
-                </div>
-              )}
+              <p className="status">Spotify is not configured on the agent</p>
             </section>
           )}
         </div>

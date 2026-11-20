@@ -225,15 +225,13 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
           </button>
         </div>
         <div className="player-bottom">
-          {!state && (
-            <>
-              <span className="skeleton skeleton-title" />
-              <span className="skeleton skeleton-artist" />
-            </>
-          )}
-          {/* a tap on the title likes the song, or takes it out of Liked Songs */}
-          <Marquee className="player-title" onClick={track ? () => like(track) : undefined}>
-            {track ? splitTitle(track.name).title : state ? 'Nothing playing' : ''}
+          {/* a tap on the title likes the song, or takes it out of Liked Songs. Both lines always hold a line of
+              text (a blank one while loading, as a skeleton bar), so nothing moves when the song arrives */}
+          <Marquee
+            className={`player-title ${state ? '' : 'skeleton'}`}
+            onClick={track ? () => like(track) : undefined}
+          >
+            {track ? splitTitle(track.name).title : state ? 'Nothing playing' : '\u00a0'}
             {track && splitTitle(track.name).extras.length > 0 && (
               <span className="title-extra">{splitTitle(track.name).extras.join(' · ')}</span>
             )}
@@ -243,7 +241,7 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
               </span>
             )}
           </Marquee>
-          <Marquee className="player-artist">{track?.artists ?? ''}</Marquee>
+          <Marquee className={`player-artist ${state ? '' : 'skeleton'}`}>{track?.artists ?? '\u00a0'}</Marquee>
           <div className="seek" onClick={seek} role="progressbar" aria-valuenow={Math.round(ratio * 100)}>
             <div className="seek-fill" style={{width: `${ratio * 100}%`}} />
           </div>
@@ -251,13 +249,16 @@ export const Player = ({api, connected, onConnected, onPlayhead}: PlayerProps) =
             <span>{formatTime(progress)}</span>
             <span>-{formatTime(Math.max(0, duration - progress))}</span>
           </div>
-          {upNext && (
-            <button type="button" className="up-next" onClick={openQueue}>
-              <span>
-                Next · {splitTitle(upNext.name).title} · {upNext.artists}
-              </span>
-            </button>
-          )}
+          {/* its space is kept while the queue loads (it comes after the song) or is empty, so the controls stay put */}
+          <button
+            type="button"
+            className={`up-next ${upNext ? '' : 'hidden'}`}
+            aria-hidden={!upNext}
+            disabled={!upNext}
+            onClick={openQueue}
+          >
+            <span>{upNext ? `Next · ${splitTitle(upNext.name).title} · ${upNext.artists}` : '\u00a0'}</span>
+          </button>
           <div className="row transport">
             <button
               type="button"

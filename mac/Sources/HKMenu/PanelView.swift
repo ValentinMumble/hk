@@ -13,13 +13,16 @@ struct PanelView: View {
                 SpotifyCard(store: store)
                 AmpCard(store: store)
                 LightsCard(store: store)
-                LyricsView(
-                    lyrics: store.lyrics, error: store.lyricsError, playback: store.playback,
-                    readAt: store.playbackReadAt, accent: store.accent, onSeek: { store.seek(to: $0) }
-                )
-                .padding(.vertical, 10)
-                .padding(.horizontal, 12)
-                .background(.quinary, in: .card)
+                // No lyrics card without a song: it would only say so
+                if store.playback?.track != nil {
+                    LyricsView(
+                        lyrics: store.lyrics, error: store.lyricsError, playback: store.playback,
+                        readAt: store.playbackReadAt, accent: store.accent, onSeek: { store.seek(to: $0) }
+                    )
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+                    .background(.quinary, in: .card)
+                }
             }
         }
         .padding(12)
