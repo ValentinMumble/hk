@@ -13,8 +13,8 @@ struct Agent: Sendable {
         try JSONDecoder().decode(Value.self, from: try await send("GET", path, body: nil))
     }
 
-    func post(_ path: String, _ body: Data = Data("{}".utf8)) async throws {
-        _ = try await send("POST", path, body: body)
+    func post(_ path: String, _ body: Data = Data("{}".utf8), timeout: TimeInterval = 15) async throws {
+        _ = try await send("POST", path, body: body, timeout: timeout)
     }
 
     /// A POST whose reply is read.
@@ -22,8 +22,8 @@ struct Agent: Sendable {
         try JSONDecoder().decode(Value.self, from: try await send("POST", path, body: body))
     }
 
-    private func send(_ method: String, _ path: String, body: Data?) async throws -> Data {
-        var request = URLRequest(url: baseURL.appending(path: path), timeoutInterval: 15)
+    private func send(_ method: String, _ path: String, body: Data?, timeout: TimeInterval = 15) async throws -> Data {
+        var request = URLRequest(url: baseURL.appending(path: path), timeoutInterval: timeout)
         request.httpMethod = method
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 

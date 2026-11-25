@@ -23,6 +23,7 @@ final class Store {
     @ObservationIgnored private var upNextTrackId: String?
     var volume = 50.0
     var sources: [String] = []
+    private(set) var isRestartingVolumio = false
     var scenes: [HueScene] = []
     /// The last error, cleared by the next success.
     var message: String?
@@ -293,6 +294,25 @@ final class Store {
                 notice = "📻 \(reply.queued) songs like \(track.name) queued"
                 message = nil
                 await loadUpNext()
+            } catch {
+                message = error.localizedDescription
+            }
+        }
+    }
+
+    /// Restarts Volumio's player and its AirPlay receiver, for an AirPlay session left "playing" that keeps Volumio
+    /// from playing anything else. The restart takes a while, so the request waits up to 2 minutes.
+    func restartVolumio() {
+        guard let agent, !isRestartingVolumio else { return }
+
+        isRestartingVolumio = true
+        Task {
+            defer { isRestartingVolumio = false }
+
+            do {
+                try await agent.post("/volumio/restart", timeout: 120)
+                notice = "✅ Volumio restarted"
+                message = nil
             } catch {
                 message = error.localizedDescription
             }

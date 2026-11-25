@@ -14,13 +14,10 @@ struct LightsCard: View {
                 Spacer()
             }
 
-            if !isFolded { lights }
+            lights
         }
         .padding(12)
         .background(.quinary, in: .card)
-        .onChange(of: isFolded) { _, isNowFolded in
-            if !isNowFolded { Task { await store.loadLights() } }
-        }
     }
 
     private var lights: some View {

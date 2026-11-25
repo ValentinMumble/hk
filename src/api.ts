@@ -72,6 +72,7 @@ export const createApi = ({agentUrl, token}: Settings) => {
     recallScene: (id: string) => call('POST', `/hue/scenes/${encodeURIComponent(id)}`),
     lyrics: () => call<LyricsResult>('GET', '/lyrics'),
     update: () => call<{sha: string; date: string}>('POST', '/update', {}),
+    restartVolumio: () => call('POST', '/volumio/restart', {}),
     spotify: {
       authUrl: (redirect: string, state: string) =>
         call<{url: string}>('GET', `/spotify/auth-url?${new URLSearchParams({redirect, state})}`),

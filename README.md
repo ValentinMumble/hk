@@ -182,6 +182,10 @@ publishes `agent-dist.tar.gz` as the GitHub release tagged `latest`. In the app,
 latest build", makes the agent download that release, swap its `dist/` folder and restart. The previous build stays on
 the Pi as `dist.previous`.
 
+The same settings have "restart player" under Volumio (the Mac app has it in its speaker menu): it restarts Volumio
+and its AirPlay receiver, for when Volumio stops answering or an AirPlay session stays stuck on "playing". Volumio already lets
+its user run `systemctl` through sudo, so it needs no setup.
+
 The agent updates from `GITHUB_REPO` (default `ValentinMumble/hk`). It runs whatever that repository releases, so point
 it at a repository you trust, such as your own fork. A private repository also needs `GITHUB_TOKEN`, a fine-grained token
 with read access to its contents.
@@ -214,9 +218,10 @@ out.
 ## Mac menu bar app
 
 `mac/` holds a small native remote for the Mac menu bar: a click on the speaker icon opens a panel with the Spotify
-controls, the next song and the volume, the amp's volume, mute, power and inputs, and the Hue scenes with "All off" (a click on the HK or
-Hue title folds that card, and a folded card's device is not checked). At the bottom, the
-lyrics follow the song line by line when they are time-coded (a click on a line plays from there). It talks to the
+controls, the next song and the volume, the amp's volume, mute, power and inputs, and the Hue scenes with "All off". At the bottom, the
+lyrics follow the song line by line when they are time-coded (a click on a line plays from there). A click on the HK,
+Hue or Lyrics title folds that card into a small chip (a folded card's device is not checked), the player folds into
+one line with its volume, and the pin keeps the panel on screen in a floating glass window. It talks to the
 same agent: the playback is read every 20 seconds and when the panel opens (with the lyrics and the next song, for a new
 song), the amp inputs and Hue scenes when the app starts, and the rest only on a click. Beside the icon, the menu bar also shows the download speed and, when a
 charger is plugged in, its wattage, read from the Mac itself every 5 seconds.
@@ -248,6 +253,7 @@ Every route needs `Authorization: Bearer <AGENT_TOKEN>`.
 | POST   | `/hue/scenes/<id>`        |                                                   | Recall a scene                                                                                |
 | GET    | `/lyrics`                 |                                                   | Lyrics of the current song, or of `?artist=&title=`                                           |
 | POST   | `/update`                 |                                                   | Install the latest release and restart                                                        |
+| POST   | `/volumio/restart`        |                                                   | On Volumio, restart its player and AirPlay (a stuck AirPlay session blocks playback)          |
 
 Spotify: `GET /spotify/state`, `devices`, `playlists`, `queue`, `search?q=`, `auth-url?redirect=&state=`;
 `POST /spotify/play {uri?|contextUri?}`, `pause`, `next`, `previous`, `seek {positionMs}`, `volume {percent}`,

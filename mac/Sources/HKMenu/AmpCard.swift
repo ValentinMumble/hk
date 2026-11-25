@@ -15,29 +15,24 @@ struct AmpCard: View {
                 GlassIcon(symbol: "power", help: "Amp off", size: 11) { store.amp("off") }
             }
 
-            if !isFolded {
-                Group {
-                    if !store.sources.isEmpty {
-                        sources
-                    }
-
-                    HStack {
-                        GlassIcon(symbol: "moon.fill", help: "Sleep timer", size: 13) { store.amp("sleep") }
-                        Spacer()
-                        rocker
-                        Spacer()
-                        GlassIcon(symbol: "speaker.slash.fill", help: "Mute", size: 13) { store.amp("mute") }
-                    }
+            Group {
+                if !store.sources.isEmpty {
+                    sources
                 }
-                // Taps would not reach an amp that does not answer
-                .opacity(store.isAmpOnline == false ? 0.4 : 1)
+
+                HStack {
+                    GlassIcon(symbol: "moon.fill", help: "Sleep timer", size: 13) { store.amp("sleep") }
+                    Spacer()
+                    rocker
+                    Spacer()
+                    GlassIcon(symbol: "speaker.slash.fill", help: "Mute", size: 13) { store.amp("mute") }
+                }
             }
+            // Taps would not reach an amp that does not answer
+            .opacity(store.isAmpOnline == false ? 0.4 : 1)
         }
         .padding(12)
         .background(.quinary, in: .card)
-        .onChange(of: isFolded) { _, isNowFolded in
-            if !isNowFolded { Task { await store.checkAmp() } }
-        }
     }
 
     private var statusText: String {

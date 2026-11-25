@@ -31,7 +31,7 @@ struct LyricsView: View {
                         ScrollView {
                             Text(lyrics.lyrics)
                                 .padding(.vertical, 20)
-                                .font(.title3)
+                                .font(.title2)
                                 .multilineTextAlignment(.center)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 8)
@@ -96,7 +96,7 @@ private struct SyncedLyrics: View {
                             onSeek(lines[index].timeMs)
                         } label: {
                             Text(lines[index].text.isEmpty ? "♪" : lines[index].text)
-                                .font(.title3.weight(index == current ? .semibold : .regular))
+                                .font(.title2.weight(index == current ? .semibold : .regular))
                                 .foregroundStyle(
                                     index == current ? AnyShapeStyle(accent ?? .primary) : AnyShapeStyle(.secondary)
                                 )

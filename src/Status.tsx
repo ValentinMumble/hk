@@ -18,6 +18,7 @@ export const Status = ({settings}: {settings: Settings}) => {
   const [lines, setLines] = useState<Line[]>([{label: 'Agent', value: 'checking…', ok: null}]);
   const [build, setBuild] = useState<AgentInfo['build']>(null);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [restarting, setRestarting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,6 +116,15 @@ export const Status = ({settings}: {settings: Settings}) => {
       throw new Error('The agent did not come back, check it on the Pi');
     }, '✅ Agent updated').finally(() => setUpdating(null));
 
+  /** Restart Volumio's player, for when an AirPlay session stays stuck on "playing" and nothing else plays. */
+  const restartVolumio = () => {
+    setRestarting(true);
+
+    return attempt(() => createApi(settings).restartVolumio(), '✅ Volumio restarted').finally(() =>
+      setRestarting(false),
+    );
+  };
+
   return (
     <dl className="status-list">
       {lines.map(line => (
@@ -128,6 +138,15 @@ export const Status = ({settings}: {settings: Settings}) => {
         <dd>
           <button type="button" className="status" disabled={null !== updating} onClick={updateAgent}>
             {updating ?? (build ? 'fetch latest build' : 'fetch latest build (local build now)')}
+          </button>
+        </dd>
+      </div>
+      {/* always there: Volumio needs it most when it stops answering, and the agent restarts it all the same */}
+      <div className="status-line">
+        <dt>Volumio</dt>
+        <dd>
+          <button type="button" className="status" disabled={restarting} onClick={restartVolumio}>
+            {restarting ? 'restarting…' : 'restart player'}
           </button>
         </dd>
       </div>

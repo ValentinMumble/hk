@@ -43,6 +43,34 @@ struct FoldingLabel: View {
     }
 }
 
+/// A folded card, as a small chip beside the other folded ones: its title and, for a device, a dot for whether it
+/// answers. A click unfolds the card.
+struct FoldedChip: View {
+    let text: String
+    var isOnline: Bool??
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Text(text).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                if let isOnline {
+                    Circle()
+                        .fill(isOnline == nil ? Color.gray : isOnline == true ? .green : .red)
+                        .frame(width: 6, height: 6)
+                }
+                Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold)).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(.quinary, in: .capsule)
+            .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .help("Show")
+    }
+}
+
 /// A round, neutral glass button around an icon.
 struct GlassIcon: View {
     let symbol: String

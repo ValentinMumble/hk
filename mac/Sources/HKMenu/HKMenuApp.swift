@@ -7,6 +7,9 @@ struct HKMenuApp: App {
     @State private var store = Store()
     @State private var status = SystemStatus()
 
+    /// The floating window the panel moves to when pinned.
+    static let pinnedWindowID = "pinned"
+
     var body: some Scene {
         MenuBarExtra {
             PanelView(store: store)
@@ -17,5 +20,18 @@ struct HKMenuApp: App {
             }
         }
         .menuBarExtraStyle(.window)
+
+        // The same panel, kept above other windows until unpinned; it opens only from the pin button. No title bar
+        // and no window backing: the panel draws its own glass, and the pin button closes it
+        Window("HK", id: Self.pinnedWindowID) {
+            PanelView(store: store, isPinned: true)
+                .containerBackground(.clear, for: .window)
+        }
+        .windowLevel(.floating)
+        .windowStyle(.plain)
+        .windowResizability(.contentSize)
+        .windowBackgroundDragBehavior(.enabled)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
     }
 }

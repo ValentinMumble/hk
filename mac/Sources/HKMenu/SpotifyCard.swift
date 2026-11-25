@@ -1,19 +1,88 @@
 import AppKit
 import SwiftUI
 
-/// The playing song over its blurred cover: controls, seek bar, volume and the Connect device.
+/// The playing song over its blurred cover: controls, seek bar, volume and the Connect device. Folds into a one-line
+/// player, and can stay on screen in a floating window (pinned).
 struct SpotifyCard: View {
     @Bindable var store: Store
+    /// Shown in the floating window rather than under the menu bar icon.
+    var isPinned = false
+    @AppStorage("spotifyCompact") private var isCompact = false
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
+        if isCompact { compactPlayer } else { fullPlayer }
+    }
+
+    /// One line with the cover, the song, and previous, play and next, then a thin volume line.
+    private var compactPlayer: some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 8) {
+                compactTrackRow
+            }
+            HStack(spacing: 2) {
+                compactControl("speaker.wave.1.fill", help: "Spotify volume down") { store.stepVolume(by: -5) }
+                Slider(value: $store.volume, in: 0...100) { isEditing in
+                    if !isEditing { store.commitVolume() }
+                }
+                .controlSize(.mini)
+                .tint(accent)
+                compactControl("speaker.wave.3.fill", help: "Spotify volume up") { store.stepVolume(by: 5) }
+            }
+            .disabled(store.playback?.device == nil)
+        }
+        .padding(8)
+        .background { coverBackdrop }
+        .clipShape(.card)
+    }
+
+    @ViewBuilder private var compactTrackRow: some View {
+        openSpotifyButton {
+            HStack(spacing: 8) {
+                coverView(size: 34, radius: 7)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(store.playback?.track?.name ?? "Nothing playing")
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+                    Text(store.playback?.track?.artists ?? " ")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        HStack(spacing: 0) {
+            compactControl("backward.fill", help: "Previous", action: store.previous)
+            compactControl(
+                store.playback?.isPlaying == true ? "pause.fill" : "play.fill", help: "Play or pause",
+                action: store.togglePlay)
+            compactControl("forward.fill", help: "Next", action: store.next)
+        }
+        GlassIcon(symbol: "arrow.up.left.and.arrow.down.right", help: "Full player", size: 9) {
+            withAnimation(.easeInOut(duration: 0.2)) { isCompact = false }
+        }
+        pinButton(size: 9)
+    }
+
+    private func compactControl(_ symbol: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13))
+                .frame(width: 26, height: 26)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
+
+    private var fullPlayer: some View {
         VStack(spacing: 14) {
             HStack(alignment: .top, spacing: 12) {
-                // Only brings the Spotify app forward: opening the song itself would start it over
-                Button {
-                    if let spotify = URL(string: "spotify:") { NSWorkspace.shared.open(spotify) }
-                } label: {
+                openSpotifyButton {
                     HStack(spacing: 12) {
-                        coverView
+                        coverView(size: 68, radius: 10)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(store.playback?.track?.name ?? "Nothing playing")
                                 .font(.headline)
@@ -25,17 +94,22 @@ struct SpotifyCard: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .help("Open Spotify")
-                VStack(spacing: 8) {
-                    GlassIcon(symbol: "gearshape", help: "Settings", size: 11) { store.isEditingSettings = true }
-                    GlassIcon(
-                        symbol: store.playback?.track?.saved == true ? "heart.fill" : "heart", help: "Like", size: 11,
-                        action: store.toggleLike
-                    )
-                    .disabled(store.playback?.track == nil)
+                Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+                    GridRow {
+                        pinButton(size: 11)
+                        GlassIcon(symbol: "gearshape", help: "Settings", size: 11) { store.isEditingSettings = true }
+                    }
+                    GridRow {
+                        GlassIcon(symbol: "arrow.down.right.and.arrow.up.left", help: "Small player", size: 11) {
+                            withAnimation(.easeInOut(duration: 0.2)) { isCompact = true }
+                        }
+                        GlassIcon(
+                            symbol: store.playback?.track?.saved == true ? "heart.fill" : "heart", help: "Like",
+                            size: 11, action: store.toggleLike
+                        )
+                        .disabled(store.playback?.track == nil)
+                    }
                 }
             }
 
@@ -112,7 +186,33 @@ struct SpotifyCard: View {
         .animation(.easeInOut(duration: 0.4), value: store.cover)
     }
 
-    private var coverView: some View {
+    /// The cover and the song; a click only brings the Spotify app forward: opening the song would start it over.
+    private func openSpotifyButton(@ViewBuilder label: () -> some View) -> some View {
+        Button {
+            if let spotify = URL(string: "spotify:") { NSWorkspace.shared.open(spotify) }
+        } label: {
+            label().contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Open Spotify")
+    }
+
+    /// Keeps the panel on screen in a floating window, or closes that window.
+    private func pinButton(size: CGFloat) -> some View {
+        GlassIcon(symbol: isPinned ? "pin.fill" : "pin", help: isPinned ? "Unpin" : "Keep on screen", size: size) {
+            if isPinned {
+                dismissWindow(id: HKMenuApp.pinnedWindowID)
+            } else {
+                // The menu bar panel is the key window here: it closes, and the floating window takes its place
+                let panel = NSApp.keyWindow
+                openWindow(id: HKMenuApp.pinnedWindowID)
+                NSApp.activate()
+                panel?.close()
+            }
+        }
+    }
+
+    private func coverView(size: CGFloat, radius: CGFloat) -> some View {
         Group {
             if let cover = store.cover {
                 Image(nsImage: cover).resizable().scaledToFill()
@@ -124,8 +224,8 @@ struct SpotifyCard: View {
                     .background(.quaternary)
             }
         }
-        .frame(width: 68, height: 68)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
     }
 
@@ -191,6 +291,12 @@ struct SpotifyCard: View {
                     }
                 }
             }
+            // Always there: Volumio needs it most when it stops answering, and the agent restarts it all the same
+            Divider()
+            Button(
+                store.isRestartingVolumio ? "Restarting Volumio…" : "Restart Volumio", action: store.restartVolumio
+            )
+            .disabled(store.isRestartingVolumio)
         } label: {
             Label(store.playback?.device?.name ?? "No device", systemImage: "hifispeaker")
         }

@@ -8,6 +8,7 @@ import {createLyrics} from './lyrics.js';
 import {createMockDevices} from './mock.js';
 import {createSpotify} from './spotify.js';
 import {readBuild, update} from './update.js';
+import {restartVolumio} from './volumio.js';
 import type {Devices, HueState, PlaybackState} from './types.js';
 
 const {
@@ -254,6 +255,12 @@ const route = async (
         lyrics: {configured: true, genius: Boolean(GENIUS_TOKEN) && !isMock},
       },
     };
+  }
+
+  if ('volumio' === root && 'POST' === method && 'restart' === second && 2 === segments.length) {
+    if (!isMock) await restartVolumio();
+
+    return {status: 204};
   }
 
   if ('lyrics' === root && 'GET' === method && 1 === segments.length) {
